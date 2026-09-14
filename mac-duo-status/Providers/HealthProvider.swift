@@ -199,6 +199,9 @@ final class HealthProvider: HealthProviding, @unchecked Sendable {
     }
 
     func startObserving(_ handler: @escaping @Sendable () -> Void) {
+        // Apple requires thermalState to be accessed before registering for this notification.
+        _ = processInfo.thermalState
+
         lock.lock()
         guard notificationTokens.isEmpty else {
             lock.unlock()
