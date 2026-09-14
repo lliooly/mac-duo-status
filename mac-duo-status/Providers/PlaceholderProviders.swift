@@ -19,6 +19,6 @@ struct PlaceholderNetworkProvider: NetworkProviding {
 
 struct PlaceholderHealthProvider: HealthProviding {
     func read() async -> HealthStatus {
-        .unavailable(selectedMetric: .cpu)
+        .unavailable(selectedMetric: .cpu, reason: "HealthProvider is not configured")
     }
 }

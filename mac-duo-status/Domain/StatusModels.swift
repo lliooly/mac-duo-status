@@ -17,6 +17,15 @@ enum DataAvailability: Equatable, Sendable {
 
         return false
     }
+
+    var reason: String? {
+        switch self {
+        case .available:
+            return nil
+        case let .unavailable(reason), let .stale(reason):
+            return reason
+        }
+    }
 }
 
 enum HealthMetric: String, CaseIterable, Identifiable, Sendable {
@@ -90,14 +99,25 @@ struct BatteryStatus: Equatable, Sendable {
     var powerSource: PowerSource
     var isLowPowerModeEnabled: Bool?
 
-    static func unavailable(reason: String) -> BatteryStatus {
+    static func unavailable(reason: String, hasBuiltInBattery: Bool = false) -> BatteryStatus {
         BatteryStatus(
             availability: .unavailable(reason: reason),
-            hasBuiltInBattery: false,
+            hasBuiltInBattery: hasBuiltInBattery,
             chargeFraction: nil,
             isCharging: nil,
             powerSource: .unknown,
             isLowPowerModeEnabled: nil
+        )
+    }
+
+    static var noBuiltInBattery: BatteryStatus {
+        BatteryStatus(
+            availability: .available,
+            hasBuiltInBattery: false,
+            chargeFraction: nil,
+            isCharging: nil,
+            powerSource: .powerAdapter,
+            isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled
         )
     }
 }
@@ -133,6 +153,10 @@ struct NetworkStatus: Equatable, Sendable {
     var signalLevel: Int?
     var hotspotConfirmed: Bool
 
+    var shouldShowWiFiSignal: Bool {
+        kind == .wifi && !hotspotConfirmed
+    }
+
     static func unavailable(reason: String) -> NetworkStatus {
         NetworkStatus(
             availability: .unavailable(reason: reason),
@@ -167,9 +191,12 @@ struct HealthStatus: Equatable, Sendable {
     var selectedScore: Double?
     var dotCount: Int?
 
-    static func unavailable(selectedMetric: HealthMetric) -> HealthStatus {
+    static func unavailable(
+        selectedMetric: HealthMetric,
+        reason: String = "Health data is unavailable"
+    ) -> HealthStatus {
         HealthStatus(
-            availability: .unavailable(reason: "HealthProvider has not been implemented"),
+            availability: .unavailable(reason: reason),
             cpuUsagePercent: nil,
             oneMinuteLoad: nil,
             fiveMinuteLoad: nil,
