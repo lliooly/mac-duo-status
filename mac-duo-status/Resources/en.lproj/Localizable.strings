@@ -1,0 +1,37 @@
+"health.metric" = "Indicator";
+"health.metric.cpu" = "CPU Usage";
+"health.metric.thermal" = "Thermal State";
+"health.metric.load" = "System Load";
+"health.score" = "Health Score";
+"health.dots" = "Health Dots";
+
+"section.battery" = "Battery";
+"section.network" = "Network";
+"section.system-health" = "System Health";
+
+"status.local-only" = "Local Mac status";
+"status.unavailable" = "Temporarily unavailable";
+
+"battery.charge" = "Charge";
+"battery.charging" = "Charging";
+
+"network.type" = "Type";
+"network.name" = "Network";
+"network.signal" = "Signal";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "Ethernet";
+"network.kind.hotspot" = "Personal Hotspot";
+"network.kind.disconnected" = "Not Connected";
+
+"common.yes" = "Yes";
+"common.no" = "No";
+"common.quit" = "Quit";
+
+"settings.general" = "General";
+"settings.open" = "Open Settings";
+"settings.launch-at-login" = "Launch at login";
+"settings.colored-icon" = "Use colored icon";
+"settings.indicators" = "Indicators";
+"settings.default-sections" = "Default expanded sections";
+"settings.about" = "About";
+"settings.skeleton-note" = "The system providers are placeholders. Implement platform adapters in the Providers layer.";

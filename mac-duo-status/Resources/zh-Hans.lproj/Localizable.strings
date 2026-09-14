@@ -1,0 +1,37 @@
+"health.metric" = "指标";
+"health.metric.cpu" = "CPU 使用率";
+"health.metric.thermal" = "系统热状态";
+"health.metric.load" = "系统负载";
+"health.score" = "健康分数";
+"health.dots" = "健康点";
+
+"section.battery" = "电池";
+"section.network" = "网络";
+"section.system-health" = "系统健康";
+
+"status.local-only" = "本机状态";
+"status.unavailable" = "暂不可用";
+
+"battery.charge" = "当前电量";
+"battery.charging" = "正在充电";
+
+"network.type" = "类型";
+"network.name" = "网络名称";
+"network.signal" = "信号级别";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "有线网络";
+"network.kind.hotspot" = "个人热点";
+"network.kind.disconnected" = "未连接";
+
+"common.yes" = "是";
+"common.no" = "否";
+"common.quit" = "退出";
+
+"settings.general" = "通用";
+"settings.open" = "打开设置";
+"settings.launch-at-login" = "开机启动";
+"settings.colored-icon" = "使用彩色图标";
+"settings.indicators" = "指示器";
+"settings.default-sections" = "默认展开区域";
+"settings.about" = "关于";
+"settings.skeleton-note" = "当前系统 Provider 仍是占位实现。请在 Providers 层补充平台适配器。";
