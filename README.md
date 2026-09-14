@@ -4,7 +4,7 @@ Duo Status 是一个轻量的 macOS 菜单栏状态聚合工具，用一个组�
 
 ## 当前状态
 
-项目处于 V1 骨架阶段。产品范围和主要交互已经确定，菜单栏入口、弹出面板、设置面板、状态模型和 Provider 接口已经建立；真实系统状态采集和开机启动系统集成仍未完成。
+项目已完成 V1 的主要实现。菜单栏入口、弹出面板、设置面板、统一状态源、真实系统状态采集和开机启动系统集成均已接入；仍需在目标 Apple silicon 设备上完成硬件场景验收。
 
 V1 的定位是个人使用、轻量和稳定优先：
 
@@ -48,7 +48,7 @@ V1 优先支持 Apple silicon。Intel Mac 不在 V1 的支持范围内。
 3. 选择 mac-duo-status Scheme。
 4. 在 Apple silicon Mac、macOS 13 或更高版本上运行。
 
-当前仓库没有声明可直接使用的命令行构建命令。是否支持命令行构建，取决于本机是否配置了完整 Xcode 和对应的 macOS SDK。
+命令行构建需要完整 Xcode 和对应的 macOS SDK。可使用 `xcodebuild -project mac-duo-status.xcodeproj -scheme mac-duo-status -destination 'platform=macOS' build`。
 
 ## 隐私和权限
 

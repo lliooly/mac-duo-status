@@ -8,7 +8,7 @@ import Foundation
 import Network
 
 enum NetworkSignalMapper {
-    static func level(forRSSI rssi: Int) -> Int {
+    nonisolated static func level(forRSSI rssi: Int) -> Int {
         if rssi >= -50 {
             return 4
         }
@@ -116,7 +116,11 @@ final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unche
         notifyChange()
     }
 
-    func linkQualityDidChangeForWiFiInterfaceWithName(_ interfaceName: String) {
+    func linkQualityDidChangeForWiFiInterface(
+        withName interfaceName: String,
+        rssi: Int,
+        transmitRate: Double
+    ) {
         notifyChange()
     }
 

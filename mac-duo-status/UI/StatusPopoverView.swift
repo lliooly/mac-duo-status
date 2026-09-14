@@ -3,6 +3,7 @@
 //  mac-duo-status
 //
 
+import Foundation
 import SwiftUI
 
 struct StatusPopoverView: View {
@@ -47,9 +48,6 @@ struct StatusPopoverView: View {
         .onAppear {
             statusStore.refreshNow()
         }
-        .onChange(of: preferences.healthMetric) { newMetric in
-            statusStore.setHealthMetric(newMetric)
-        }
     }
 
     private var summary: some View {
@@ -64,13 +62,9 @@ struct StatusPopoverView: View {
                 Text("Duo Status")
                     .font(.title3.weight(.semibold))
 
-                Text(NSLocalizedString("status.local-only", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 Text(
-                    snapshot.lastUpdated,
-                    format: Date.FormatStyle(date: .omitted, time: .shortened)
+                    "\(NSLocalizedString("status.updated", comment: "")) " +
+                    snapshot.lastUpdated.formatted(date: .omitted, time: .shortened)
                 )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -82,8 +76,12 @@ struct StatusPopoverView: View {
 
     @ViewBuilder
     private var batteryDetails: some View {
-        if case let .unavailable(reason) = snapshot.battery.availability {
-            UnavailableStatusView(reason: reason)
+        if snapshot.battery.availability.reason != nil {
+            UnavailableStatusView(reason: nil)
+        } else if !snapshot.battery.hasBuiltInBattery {
+            UnavailableStatusView(
+                reason: NSLocalizedString("battery.no-built-in", comment: "")
+            )
         } else {
             if let chargeFraction = snapshot.battery.chargeFraction {
                 StatusValueRow(
@@ -100,30 +98,46 @@ struct StatusPopoverView: View {
                         : NSLocalizedString("common.no", comment: "")
                 )
             }
+
+            StatusValueRow(
+                title: NSLocalizedString("battery.power-source", comment: ""),
+                value: snapshot.battery.powerSource.localizedTitle
+            )
+
+            if let isLowPowerModeEnabled = snapshot.battery.isLowPowerModeEnabled {
+                StatusValueRow(
+                    title: NSLocalizedString("battery.low-power-mode", comment: ""),
+                    value: isLowPowerModeEnabled
+                        ? NSLocalizedString("common.yes", comment: "")
+                        : NSLocalizedString("common.no", comment: "")
+                )
+            }
         }
     }
 
     @ViewBuilder
     private var networkDetails: some View {
-        if case let .unavailable(reason) = snapshot.network.availability {
-            UnavailableStatusView(reason: reason)
+        if snapshot.network.availability.reason != nil {
+            UnavailableStatusView(reason: nil)
         } else {
             StatusValueRow(
                 title: NSLocalizedString("network.type", comment: ""),
                 value: snapshot.network.kind.localizedTitle
             )
 
-            if let name = snapshot.network.name {
+            if snapshot.network.kind == .wifi || snapshot.network.kind == .hotspot {
                 StatusValueRow(
                     title: NSLocalizedString("network.name", comment: ""),
-                    value: name
+                    value: snapshot.network.name
+                        ?? NSLocalizedString("status.unavailable", comment: "")
                 )
             }
 
-            if let signalLevel = snapshot.network.signalLevel {
+            if snapshot.network.shouldShowWiFiSignal {
                 StatusValueRow(
                     title: NSLocalizedString("network.signal", comment: ""),
-                    value: "\(signalLevel)/4"
+                    value: snapshot.network.signalLevel.map { "\($0)/4" }
+                        ?? NSLocalizedString("status.unavailable", comment: "")
                 )
             }
         }
@@ -135,7 +149,7 @@ struct StatusPopoverView: View {
             NSLocalizedString("health.metric", comment: ""),
             selection: Binding(
                 get: { preferences.healthMetric },
-                set: { preferences.healthMetric = $0 }
+                set: { statusStore.setHealthMetric($0) }
             )
         ) {
             ForEach(HealthMetric.allCases) { metric in
@@ -145,10 +159,9 @@ struct StatusPopoverView: View {
         }
         .pickerStyle(.segmented)
 
-        if case let .unavailable(reason) = snapshot.health.availability {
-            UnavailableStatusView(reason: reason)
-                .padding(.top, 4)
-        } else {
+        if let details = selectedMetricDetails {
+            StatusValueRow(title: details.title, value: details.value)
+
             if let score = snapshot.health.selectedScore {
                 StatusValueRow(
                     title: NSLocalizedString("health.score", comment: ""),
@@ -162,6 +175,41 @@ struct StatusPopoverView: View {
                     value: "\(dotCount)/4"
                 )
             }
+        } else {
+            UnavailableStatusView(reason: nil)
+                .padding(.top, 4)
+        }
+    }
+
+    private var selectedMetricDetails: (title: String, value: String)? {
+        switch preferences.healthMetric {
+        case .cpu:
+            guard let usage = snapshot.health.cpuUsagePercent else {
+                return nil
+            }
+
+            return (
+                NSLocalizedString("health.metric.cpu", comment: ""),
+                String(format: "%.0f%%", usage)
+            )
+        case .thermal:
+            guard let thermalState = snapshot.health.thermalState else {
+                return nil
+            }
+
+            return (
+                NSLocalizedString("health.metric.thermal", comment: ""),
+                thermalState.localizedTitle
+            )
+        case .load:
+            guard let load = snapshot.health.oneMinuteLoad else {
+                return nil
+            }
+
+            return (
+                NSLocalizedString("health.load.one-minute", comment: ""),
+                String(format: "%.2f", load)
+            )
         }
     }
 
@@ -174,6 +222,34 @@ struct StatusPopoverView: View {
                 preferences.setExpanded(newValue, for: section)
             }
         )
+    }
+}
+
+private extension PowerSource {
+    var localizedTitle: String {
+        switch self {
+        case .battery:
+            return NSLocalizedString("battery.power-source.battery", comment: "")
+        case .powerAdapter:
+            return NSLocalizedString("battery.power-source.adapter", comment: "")
+        case .unknown:
+            return NSLocalizedString("status.unavailable", comment: "")
+        }
+    }
+}
+
+private extension ThermalState {
+    var localizedTitle: String {
+        switch self {
+        case .nominal:
+            return NSLocalizedString("health.thermal.nominal", comment: "")
+        case .fair:
+            return NSLocalizedString("health.thermal.fair", comment: "")
+        case .serious:
+            return NSLocalizedString("health.thermal.serious", comment: "")
+        case .critical:
+            return NSLocalizedString("health.thermal.critical", comment: "")
+        }
     }
 }
 

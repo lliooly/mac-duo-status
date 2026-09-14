@@ -6,7 +6,7 @@
 import Foundation
 
 enum HealthScoreCalculator {
-    static func cpuScore(usagePercent: Double) -> Double {
+    nonisolated static func cpuScore(usagePercent: Double) -> Double {
         guard usagePercent.isFinite else {
             return 0
         }
@@ -14,7 +14,7 @@ enum HealthScoreCalculator {
         return 1 - usagePercent / 100
     }
 
-    static func loadScore(oneMinuteLoad: Double, logicalCPUCount: Int) -> Double {
+    nonisolated static func loadScore(oneMinuteLoad: Double, logicalCPUCount: Int) -> Double {
         guard logicalCPUCount > 0, oneMinuteLoad.isFinite else {
             return 0
         }
@@ -22,7 +22,7 @@ enum HealthScoreCalculator {
         return 1 - oneMinuteLoad / Double(logicalCPUCount)
     }
 
-    static func thermalScore(for state: ThermalState) -> Double {
+    nonisolated static func thermalScore(for state: ThermalState) -> Double {
         switch state {
         case .nominal:
             return 1.00
@@ -35,7 +35,7 @@ enum HealthScoreCalculator {
         }
     }
 
-    static func dotCount(for score: Double) -> Int {
+    nonisolated static func dotCount(for score: Double) -> Int {
         guard score.isFinite else {
             return 0
         }

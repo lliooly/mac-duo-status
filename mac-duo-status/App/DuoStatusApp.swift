@@ -12,10 +12,12 @@ struct DuoStatusApp: App {
     @StateObject private var statusStore: SystemStatusStore
 
     init() {
-        let preferences = PreferencesStore()
+        let preferences = PreferencesStore(
+            launchAtLoginManager: SystemLaunchAtLoginManager()
+        )
         let status = SystemStatusStore(
             preferences: preferences,
-            providers: ProviderContainer.placeholders
+            providers: ProviderContainer.live
         )
 
         _preferencesStore = StateObject(wrappedValue: preferences)

@@ -7,13 +7,13 @@ import Foundation
 
 struct PlaceholderBatteryProvider: BatteryProviding {
     func read() async -> BatteryStatus {
-        .unavailable(reason: "BatteryProvider has not been implemented")
+        .unavailable(reason: "Battery data is unavailable")
     }
 }
 
 struct PlaceholderNetworkProvider: NetworkProviding {
     func read() async -> NetworkStatus {
-        .unavailable(reason: "NetworkProvider has not been implemented")
+        .unavailable(reason: "Network data is unavailable")
     }
 }
 

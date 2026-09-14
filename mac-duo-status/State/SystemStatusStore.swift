@@ -5,6 +5,7 @@
 
 import Combine
 import Foundation
+import AppKit
 
 @MainActor
 final class SystemStatusStore: ObservableObject {
@@ -13,8 +14,12 @@ final class SystemStatusStore: ObservableObject {
     private let preferences: PreferencesStore
     private let providers: ProviderContainer
     private let samplingIntervalNanoseconds: UInt64
+    private let workspaceNotificationCenter: NotificationCenter
 
     private var refreshTask: Task<Void, Never>?
+    private var lifecycleTokens: [NSObjectProtocol] = []
+    private var isStarted = false
+    private var isRefreshing = false
     private var batteryStatus: BatteryStatus
     private var networkStatus: NetworkStatus
     private var healthStatus: HealthStatus
@@ -27,36 +32,36 @@ final class SystemStatusStore: ObservableObject {
         self.preferences = preferences
         self.providers = providers
         self.samplingIntervalNanoseconds = samplingIntervalNanoseconds
-        self.batteryStatus = .unavailable(reason: "BatteryProvider has not been implemented")
-        self.networkStatus = .unavailable(reason: "NetworkProvider has not been implemented")
+        self.workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
+        self.batteryStatus = .unavailable(reason: "Battery data is unavailable")
+        self.networkStatus = .unavailable(reason: "Network data is unavailable")
         self.healthStatus = .unavailable(selectedMetric: preferences.healthMetric)
         self.snapshot = .initial(selectedMetric: preferences.healthMetric)
     }
 
     func start() {
-        guard refreshTask == nil else {
+        guard !isStarted else {
             return
         }
 
-        let interval = samplingIntervalNanoseconds
-        refreshTask = Task { [weak self] in
-            await self?.refresh()
-
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: interval)
-
-                guard !Task.isCancelled else {
-                    return
-                }
-
-                await self?.refresh()
-            }
-        }
+        isStarted = true
+        startProviderObservers()
+        observeWorkspaceLifecycle()
+        startSampling()
     }
 
     func stop() {
+        guard isStarted else {
+            return
+        }
+
+        isStarted = false
         refreshTask?.cancel()
         refreshTask = nil
+        providers.battery.stopObserving()
+        providers.network.stopObserving()
+        providers.health.stopObserving()
+        removeWorkspaceObservers()
     }
 
     func refreshNow() {
@@ -71,10 +76,111 @@ final class SystemStatusStore: ObservableObject {
         rebuildSnapshot()
     }
 
+    private func startSampling() {
+        guard refreshTask == nil else {
+            return
+        }
+
+        let interval = samplingIntervalNanoseconds
+        refreshTask = Task { [weak self] in
+            await self?.refresh()
+
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: interval)
+                } catch {
+                    return
+                }
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                await self?.refresh()
+            }
+        }
+    }
+
+    private func startProviderObservers() {
+        let handler: @Sendable () -> Void = { [weak self] in
+            Task { @MainActor in
+                self?.refreshNow()
+            }
+        }
+
+        providers.battery.startObserving(handler)
+        providers.network.startObserving(handler)
+        providers.health.startObserving(handler)
+    }
+
+    private func observeWorkspaceLifecycle() {
+        lifecycleTokens = [
+            workspaceNotificationCenter.addObserver(
+                forName: NSWorkspace.willSleepNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.pauseSamplingForSleep()
+                }
+            },
+            workspaceNotificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.resumeSamplingAfterWake()
+                }
+            }
+        ]
+    }
+
+    private func removeWorkspaceObservers() {
+        lifecycleTokens.forEach(workspaceNotificationCenter.removeObserver)
+        lifecycleTokens.removeAll()
+    }
+
+    private func pauseSamplingForSleep() {
+        guard isStarted else {
+            return
+        }
+
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
+    private func resumeSamplingAfterWake() {
+        guard isStarted else {
+            return
+        }
+
+        startSampling()
+        refreshNow()
+    }
+
     private func refresh() async {
-        let battery = await providers.battery.read()
-        let network = await providers.network.read()
-        let health = await providers.health.read()
+        guard !isRefreshing else {
+            return
+        }
+
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        let providers = providers
+        let batteryTask = Task.detached(priority: .utility) {
+            await providers.battery.read()
+        }
+        let networkTask = Task.detached(priority: .utility) {
+            await providers.network.read()
+        }
+        let healthTask = Task.detached(priority: .utility) {
+            await providers.health.read()
+        }
+
+        let battery = await batteryTask.value
+        let network = await networkTask.value
+        let health = await healthTask.value
 
         batteryStatus = battery
         networkStatus = network

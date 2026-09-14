@@ -134,7 +134,7 @@ V1 不测试 Wi-Fi 切换；该功能属于 V1.1。
 | 权限 | V1 不申请管理员权限 |
 | 数据来源 | 本机 Apple 公开 API |
 
-兼容性验证需要完整 Xcode 和对应 SDK。当前骨架已经使用完整 Xcode 在 macOS destination 上通过应用构建和 `build-for-testing` 编译验证；真实 Provider 尚未接入，因此还没有完成真实硬件状态验证。当前沙箱无法连接 Xcode 的 `testmanagerd`/CoreSimulator 服务，单元测试可以编译但不能在此环境中完成运行验收。
+兼容性验证需要完整 Xcode 和对应 SDK。当前工程已使用 Xcode 27 在 macOS destination 上通过应用构建和 `build-for-testing` 编译验证，单元测试也已在完整 Xcode 的 macOS destination 上执行通过。受限沙箱内直接连接 Xcode 的 `testmanagerd`/CoreSimulator 服务仍不可用；真实 Provider 仍需在 Apple silicon 设备上完成硬件状态验证。
 
 ## 5. 手动验收顺序
 

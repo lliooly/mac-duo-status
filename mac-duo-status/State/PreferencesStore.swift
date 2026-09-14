@@ -16,7 +16,19 @@ final class PreferencesStore: ObservableObject {
 
     @Published var launchAtLogin: Bool {
         didSet {
-            defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            if isSynchronizingLaunchAtLogin {
+                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+                return
+            }
+
+            do {
+                try launchAtLoginManager.setEnabled(launchAtLogin)
+                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            } catch {
+                isSynchronizingLaunchAtLogin = true
+                launchAtLogin = oldValue
+                isSynchronizingLaunchAtLogin = false
+            }
         }
     }
 
@@ -36,9 +48,15 @@ final class PreferencesStore: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    private let launchAtLoginManager: any LaunchAtLoginManaging
+    private var isSynchronizingLaunchAtLogin = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        launchAtLoginManager: (any LaunchAtLoginManaging)? = nil
+    ) {
         self.defaults = defaults
+        self.launchAtLoginManager = launchAtLoginManager ?? NoopLaunchAtLoginManager()
 
         let storedMetric = defaults.string(forKey: Keys.healthMetric)
             .flatMap(HealthMetric.init(rawValue:))
@@ -50,6 +68,10 @@ final class PreferencesStore: ObservableObject {
         self.expandedSections = Set(
             storedSections.compactMap(StatusSection.init(rawValue:))
         )
+
+        if launchAtLogin {
+            try? self.launchAtLoginManager.setEnabled(true)
+        }
     }
 
     func isExpanded(_ section: StatusSection) -> Bool {

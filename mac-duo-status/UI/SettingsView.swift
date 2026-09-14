@@ -52,19 +52,9 @@ struct SettingsView: View {
             } header: {
                 Text(NSLocalizedString("settings.default-sections", comment: ""))
             }
-
-            Section {
-                Text("Duo Status")
-                    .font(.headline)
-                Text(NSLocalizedString("settings.skeleton-note", comment: ""))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text(NSLocalizedString("settings.about", comment: ""))
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .frame(width: 380)
         .padding()
     }
 

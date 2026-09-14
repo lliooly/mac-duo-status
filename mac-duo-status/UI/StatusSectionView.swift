@@ -16,7 +16,7 @@ struct StatusSectionView<Content: View>: View {
                 .padding(.top, 6)
         } label: {
             Label(section.localizedTitle, systemImage: section.systemImageName)
-                .font(.headline)
+                .font(.subheadline.weight(.medium))
         }
     }
 }
@@ -40,14 +40,14 @@ struct StatusValueRow: View {
 struct UnavailableStatusView: View {
     let reason: String?
 
+    @ViewBuilder
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(NSLocalizedString("status.unavailable", comment: ""))
-                .foregroundStyle(.secondary)
-
             if let reason, !reason.isEmpty {
                 Text(reason)
-                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(NSLocalizedString("status.unavailable", comment: ""))
                     .foregroundStyle(.secondary)
             }
         }

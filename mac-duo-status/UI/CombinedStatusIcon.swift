@@ -70,7 +70,16 @@ struct CombinedStatusIcon: View {
     }
 
     private var networkColor: Color {
-        usesColor ? .blue : .primary
+        guard usesColor else {
+            return .primary
+        }
+
+        switch snapshot.network.kind {
+        case .disconnected, .unavailable:
+            return .secondary
+        case .wifi, .ethernet, .hotspot:
+            return .blue
+        }
     }
 
     private var healthColor: Color {

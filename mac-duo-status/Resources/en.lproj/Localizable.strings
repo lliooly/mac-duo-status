@@ -11,9 +11,15 @@
 
 "status.local-only" = "Local Mac status";
 "status.unavailable" = "Temporarily unavailable";
+"status.updated" = "Updated";
 
 "battery.charge" = "Charge";
 "battery.charging" = "Charging";
+"battery.power-source" = "Power Source";
+"battery.power-source.battery" = "Battery";
+"battery.power-source.adapter" = "Power Adapter";
+"battery.low-power-mode" = "Low Power Mode";
+"battery.no-built-in" = "No built-in battery";
 
 "network.type" = "Type";
 "network.name" = "Network";
@@ -22,6 +28,12 @@
 "network.kind.ethernet" = "Ethernet";
 "network.kind.hotspot" = "Personal Hotspot";
 "network.kind.disconnected" = "Not Connected";
+
+"health.load.one-minute" = "1-minute Load";
+"health.thermal.nominal" = "Nominal";
+"health.thermal.fair" = "Fair";
+"health.thermal.serious" = "Serious";
+"health.thermal.critical" = "Critical";
 
 "common.yes" = "Yes";
 "common.no" = "No";
@@ -33,5 +45,3 @@
 "settings.colored-icon" = "Use colored icon";
 "settings.indicators" = "Indicators";
 "settings.default-sections" = "Default expanded sections";
-"settings.about" = "About";
-"settings.skeleton-note" = "The system providers are placeholders. Implement platform adapters in the Providers layer.";

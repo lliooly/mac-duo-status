@@ -6,6 +6,19 @@
 import Foundation
 import IOKit.ps
 
+enum BatteryChargeCalculator {
+    nonisolated static func fraction(currentCapacity: Int, maximumCapacity: Int) -> Double? {
+        guard maximumCapacity > 0 else {
+            return nil
+        }
+
+        return min(
+            max(Double(currentCapacity) / Double(maximumCapacity), 0),
+            1
+        )
+    }
+}
+
 final class BatteryProvider: BatteryProviding, @unchecked Sendable {
     private let lock = NSLock()
     private var changeHandler: (@Sendable () -> Void)?
@@ -95,10 +108,15 @@ final class BatteryProvider: BatteryProviding, @unchecked Sendable {
             )
         }
 
-        let chargeFraction = min(
-            max(Double(currentCapacity) / Double(maximumCapacity), 0),
-            1
-        )
+        guard let chargeFraction = BatteryChargeCalculator.fraction(
+            currentCapacity: currentCapacity,
+            maximumCapacity: maximumCapacity
+        ) else {
+            return .unavailable(
+                reason: "Battery capacity is unavailable",
+                hasBuiltInBattery: true
+            )
+        }
         let powerSource = powerSource(for: description)
 
         return BatteryStatus(

@@ -70,6 +70,8 @@ final class MachCPUUsageReader: CPUUsageReading, @unchecked Sendable {
         }
         self.previousTicks = currentTicks
 
+        let stateCount = max(Int(exactly: CPU_STATE_MAX) ?? 4, 1)
+        let idleState = Int(exactly: CPU_STATE_IDLE) ?? 2
         var activeDelta: UInt64 = 0
         var totalDelta: UInt64 = 0
         for index in currentTicks.indices {
@@ -78,8 +80,8 @@ final class MachCPUUsageReader: CPUUsageReading, @unchecked Sendable {
                 : 0
             totalDelta += delta
 
-            let state = index % (Int(exactly: CPU_STATE_MAX) ?? 0)
-            if state != (Int(exactly: CPU_STATE_IDLE) ?? 2) {
+            let state = index % stateCount
+            if state != idleState {
                 activeDelta += delta
             }
         }

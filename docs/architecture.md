@@ -12,15 +12,15 @@ V1 只实现本机状态读取、统一状态展示和已确认的本地配置�
 
 - 主场景使用 MenuBarExtra。
 - 设置场景使用 Settings。
-- 领域层包含状态模型和健康分数计算入口。
-- State 层包含 SystemStatusStore 和 PreferencesStore。
-- Providers 层包含协议和占位实现。
+- 领域层包含状态模型、健康分数计算和平滑采样基础。
+- State 层包含 SystemStatusStore、事件/定时刷新和 PreferencesStore。
+- Providers 层包含协议、真实 Apple 平台适配器和测试替身。
 - UI 层包含组合图标、弹出面板、状态区域和设置面板。
-- 单元测试覆盖当前的纯逻辑和占位 Provider。
+- 单元测试覆盖纯逻辑、测试替身和统一状态源。
 
-Xcode 默认的 WindowGroup、NavigationSplitView、SwiftData 和 Item 示例已经移除。真实 Apple 平台 API 适配器仍未实现。
+Xcode 默认的 WindowGroup、NavigationSplitView、SwiftData 和 Item 示例已经移除。
 
-当前设置面板中的开机启动开关只保存用户偏好，尚未注册系统登录项。
+设置面板中的开机启动开关通过 macOS 13 的 SMAppService 注册或取消主应用登录项。
 
 ## 3. 目标分层
 

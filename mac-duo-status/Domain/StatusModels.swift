@@ -244,9 +244,12 @@ struct SystemStatusSnapshot: Equatable, Sendable {
     static func initial(selectedMetric: HealthMetric) -> SystemStatusSnapshot {
         SystemStatusSnapshot(
             lastUpdated: Date(),
-            battery: .unavailable(reason: "BatteryProvider has not been implemented"),
-            network: .unavailable(reason: "NetworkProvider has not been implemented"),
-            health: .unavailable(selectedMetric: selectedMetric)
+            battery: .unavailable(reason: "Battery data is unavailable"),
+            network: .unavailable(reason: "Network data is unavailable"),
+            health: .unavailable(
+                selectedMetric: selectedMetric,
+                reason: "Health data is unavailable"
+            )
         )
     }
 }
