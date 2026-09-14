@@ -34,7 +34,7 @@ struct DuoStatusApp: App {
         } label: {
             CombinedStatusIcon(
                 snapshot: statusStore.snapshot,
-                size: 22,
+                size: 20,
                 usesColor: preferencesStore.usesColor
             )
             .contextMenu {

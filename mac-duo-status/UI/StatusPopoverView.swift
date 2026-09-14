@@ -15,36 +15,35 @@ struct StatusPopoverView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                summary
+        VStack(alignment: .leading, spacing: 14) {
+            summary
 
-                Divider()
+            Divider()
 
-                StatusSectionView(
-                    section: .battery,
-                    isExpanded: sectionBinding(for: .battery)
-                ) {
-                    batteryDetails
-                }
-
-                StatusSectionView(
-                    section: .network,
-                    isExpanded: sectionBinding(for: .network)
-                ) {
-                    networkDetails
-                }
-
-                StatusSectionView(
-                    section: .systemHealth,
-                    isExpanded: sectionBinding(for: .systemHealth)
-                ) {
-                    healthDetails
-                }
+            StatusSectionView(
+                section: .battery,
+                isExpanded: sectionBinding(for: .battery)
+            ) {
+                batteryDetails
             }
-            .padding(16)
+
+            StatusSectionView(
+                section: .network,
+                isExpanded: sectionBinding(for: .network)
+            ) {
+                networkDetails
+            }
+
+            StatusSectionView(
+                section: .systemHealth,
+                isExpanded: sectionBinding(for: .systemHealth)
+            ) {
+                healthDetails
+            }
         }
-        .frame(width: 360)
+        .padding(16)
+        // Let MenuBarExtra derive its window size from the visible sections.
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             statusStore.refreshNow()
         }
