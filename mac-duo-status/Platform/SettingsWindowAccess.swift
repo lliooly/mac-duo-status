@@ -27,4 +27,23 @@ enum SettingsWindowAccess {
             from: nil
         )
     }
+
+    static func openWiFiSettings() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        let urls = [
+            "x-apple.systempreferences:com.apple.wifi-settings",
+            "x-apple.systempreferences:com.apple.wifi-settings-extension",
+            "x-apple.systempreferences:com.apple.preference.network?Wi-Fi",
+            "x-apple.systempreferences:com.apple.preference.network"
+        ]
+
+        for value in urls {
+            guard let url = URL(string: value), NSWorkspace.shared.open(url) else {
+                continue
+            }
+
+            return
+        }
+    }
 }

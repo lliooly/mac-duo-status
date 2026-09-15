@@ -13,8 +13,6 @@ struct WiFiControlView: View {
     let onBack: () -> Void
 
     @State private var selectedCandidate: WiFiNetworkCandidate?
-    @State private var accessPointCandidate: WiFiNetworkCandidate?
-    @State private var showsAccessPointSelection = false
     @State private var showsHiddenNetwork = false
     @State private var hiddenSSID = ""
 
@@ -23,24 +21,39 @@ struct WiFiControlView: View {
     }
 
     private var hotspots: [WiFiNetworkCandidate] {
-        controls.networkCandidates.filter {
-            $0.hotspotConfirmation == .confirmed
-        }
+        WiFiNetworkCandidateGrouping.hotspots(from: controls.networkCandidates)
     }
 
     private var knownNetworks: [WiFiNetworkCandidate] {
-        controls.networkCandidates.filter {
-            $0.isKnown && $0.hotspotConfirmation != .confirmed
-        }
+        WiFiNetworkCandidateGrouping.knownNetworks(from: controls.networkCandidates)
     }
 
     private var otherNetworks: [WiFiNetworkCandidate] {
-        controls.networkCandidates.filter {
-            !$0.isKnown && $0.hotspotConfirmation != .confirmed
-        }
+        WiFiNetworkCandidateGrouping.otherNetworks(from: controls.networkCandidates)
     }
 
     var body: some View {
+        Group {
+            if let candidate = selectedCandidate {
+                WiFiCredentialView(
+                    candidate: candidate,
+                    onBack: {
+                        selectedCandidate = nil
+                    }
+                )
+                .environmentObject(controls)
+            } else {
+                networkList
+            }
+        }
+        .task {
+            if controls.networkCandidates.isEmpty {
+                await controls.scanNetworks(includeHidden: false)
+            }
+        }
+    }
+
+    private var networkList: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
 
@@ -76,71 +89,22 @@ struct WiFiControlView: View {
                     .foregroundStyle(DuoStatusStyle.muted)
             }
 
-            ScrollView(.vertical) {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if !hotspots.isEmpty {
-                        networkSection(
-                            title: NSLocalizedString("wifi.personal-hotspots", comment: ""),
-                            networks: hotspots
-                        )
-                    }
+            WiFiNetworkListView(
+                hotspots: hotspots,
+                knownNetworks: knownNetworks,
+                otherNetworks: otherNetworks,
+                currentSSIDData: snapshot.network.ssidData,
+                currentNetworkName: snapshot.network.name,
+                isPending: networkOperationIsPending,
+                onOpenNetwork: openNetwork
+            )
+            .equatable()
 
-                    networkSection(
-                        title: NSLocalizedString("wifi.known-networks", comment: ""),
-                        networks: knownNetworks
-                    )
-
-                    networkSection(
-                        title: NSLocalizedString("wifi.other-networks", comment: ""),
-                        networks: otherNetworks
-                    )
-
-                    if showsHiddenNetwork {
-                        hiddenNetworkEntry
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if showsHiddenNetwork {
+                hiddenNetworkEntry
             }
-            .frame(maxHeight: 360)
 
             controlsRow
-        }
-        .task {
-            if controls.networkCandidates.isEmpty {
-                await controls.scanNetworks(includeHidden: false)
-            }
-        }
-        .sheet(item: $selectedCandidate) { candidate in
-            WiFiCredentialView(candidate: candidate)
-                .environmentObject(controls)
-        }
-        .confirmationDialog(
-            NSLocalizedString("wifi.choose-access-point", comment: ""),
-            isPresented: $showsAccessPointSelection,
-            titleVisibility: .visible
-        ) {
-            if let candidate = accessPointCandidate {
-                ForEach(candidate.selectableAccessPoints) { accessPoint in
-                    Button {
-                        selectedCandidate = candidate.selectingAccessPoint(accessPoint)
-                        accessPointCandidate = nil
-                    } label: {
-                        HStack {
-                            Text(accessPoint.bssid)
-                            Spacer(minLength: 12)
-                            if let rssi = accessPoint.rssi {
-                                Text("\(rssi) dBm")
-                                    .foregroundStyle(DuoStatusStyle.muted)
-                            }
-                        }
-                    }
-                    .accessibilityIdentifier("wifi-bssid-\(accessPoint.id)")
-                }
-            }
-
-            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
-                accessPointCandidate = nil
-            }
         }
     }
 
@@ -185,25 +149,145 @@ struct WiFiControlView: View {
             } label: {
                 Label(
                     NSLocalizedString("wifi.hidden-network", comment: ""),
-                    systemImage: "plus"
+                    systemImage: showsHiddenNetwork ? "minus" : "plus"
                 )
                 .font(.system(size: 11, weight: .medium))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("wifi-hidden-network-toggle")
 
             Spacer(minLength: 0)
 
-            Button {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.network") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
+            Button(action: SettingsWindowAccess.openWiFiSettings) {
                 Text(NSLocalizedString("wifi.settings", comment: ""))
                     .font(.system(size: 11, weight: .medium))
             }
             .buttonStyle(.plain)
         }
         .foregroundStyle(DuoStatusStyle.muted)
+    }
+
+    private var hiddenNetworkEntry: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(NSLocalizedString("wifi.hidden-network", comment: ""))
+                .font(.system(size: 12, weight: .semibold))
+
+            HStack(spacing: 6) {
+                TextField(
+                    NSLocalizedString("wifi.ssid-placeholder", comment: ""),
+                    text: $hiddenSSID
+                )
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("wifi-hidden-network-ssid")
+
+                Button(NSLocalizedString("wifi.scan", comment: "")) {
+                    let ssid = hiddenSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard let data = ssid.data(using: .utf8), !data.isEmpty else {
+                        return
+                    }
+
+                    Task {
+                        await controls.scanNetworks(includeHidden: true, ssidData: data)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(
+                    hiddenSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        networkOperationIsPending
+                )
+                .accessibilityIdentifier("wifi-hidden-network-scan")
+            }
+        }
+    }
+
+    private var networkOperationIsPending: Bool {
+        controls.networkOperationState.isPending
+    }
+
+    private func openNetwork(_ network: WiFiNetworkCandidate) {
+        guard !networkOperationIsPending else {
+            return
+        }
+
+        beginConnectionOrShowCredentials(for: network)
+    }
+
+    private func beginConnectionOrShowCredentials(for network: WiFiNetworkCandidate) {
+        guard !networkOperationIsPending else {
+            return
+        }
+
+        if network.isKnown || isOpenSecurity(network.primarySecurity) {
+            Task {
+                let error = await controls.connect(
+                    to: network,
+                    credential: nil,
+                    remember: false
+                )
+
+                if error == .credentialsRequired || error == .authenticationFailed {
+                    selectedCandidate = network
+                }
+            }
+        } else {
+            selectedCandidate = network
+        }
+    }
+
+    private func isOpenSecurity(_ security: WiFiSecurity) -> Bool {
+        switch security {
+        case .open, .owe, .oweTransition:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+private struct WiFiNetworkListView: View, Equatable {
+    let hotspots: [WiFiNetworkCandidate]
+    let knownNetworks: [WiFiNetworkCandidate]
+    let otherNetworks: [WiFiNetworkCandidate]
+    let currentSSIDData: Data?
+    let currentNetworkName: String?
+    let isPending: Bool
+    let onOpenNetwork: (WiFiNetworkCandidate) -> Void
+
+    static func == (lhs: WiFiNetworkListView, rhs: WiFiNetworkListView) -> Bool {
+        lhs.hotspots == rhs.hotspots &&
+            lhs.knownNetworks == rhs.knownNetworks &&
+            lhs.otherNetworks == rhs.otherNetworks &&
+            lhs.currentSSIDData == rhs.currentSSIDData &&
+            lhs.currentNetworkName == rhs.currentNetworkName &&
+            lhs.isPending == rhs.isPending
+    }
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 12) {
+                if !hotspots.isEmpty {
+                    networkSection(
+                        title: NSLocalizedString("wifi.personal-hotspots", comment: ""),
+                        networks: hotspots
+                    )
+                }
+
+                if !knownNetworks.isEmpty {
+                    networkSection(
+                        title: NSLocalizedString("wifi.known-networks", comment: ""),
+                        networks: knownNetworks
+                    )
+                }
+
+                networkSection(
+                    title: NSLocalizedString("wifi.other-networks", comment: ""),
+                    networks: otherNetworks
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(height: 360)
     }
 
     private func networkSection(
@@ -229,31 +313,21 @@ struct WiFiControlView: View {
     }
 
     private func networkRow(_ network: WiFiNetworkCandidate) -> some View {
-        let isUnavailable = network.isKnown && network.rssi == nil
         let isCurrent = isCurrentNetwork(network)
 
         return Button {
-            guard !isUnavailable else {
-                return
-            }
-            openNetwork(network)
+            onOpenNetwork(network)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: network.primarySecurity == .open ? "wifi" : "lock.fill")
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(isUnavailable ? DuoStatusStyle.muted : .primary)
+                    .foregroundStyle(.primary)
                     .frame(width: 20)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(network.displayName ?? NSLocalizedString("wifi.hidden", comment: ""))
                         .font(.system(size: 12, weight: .medium))
                         .lineLimit(1)
-
-                    if isUnavailable {
-                        Text(NSLocalizedString("wifi.not-found", comment: ""))
-                            .font(.system(size: 9))
-                            .foregroundStyle(DuoStatusStyle.muted)
-                    }
                 }
 
                 Spacer(minLength: 0)
@@ -267,80 +341,27 @@ struct WiFiControlView: View {
                         .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(DuoStatusStyle.muted)
                 }
-
-                if network.selectableAccessPoints.count > 1 {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(DuoStatusStyle.muted)
-                        .accessibilityHidden(true)
-                }
             }
             .padding(.horizontal, 8)
             .frame(minHeight: 32)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .opacity(isUnavailable ? 0.52 : 1)
-        .disabled(isUnavailable)
+        .disabled(isPending)
         .accessibilityIdentifier("wifi-network-\(network.id)")
     }
 
-    private var hiddenNetworkEntry: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(NSLocalizedString("wifi.hidden-network", comment: ""))
-                .font(.system(size: 12, weight: .semibold))
-
-            HStack(spacing: 6) {
-                TextField(
-                    NSLocalizedString("wifi.ssid-placeholder", comment: ""),
-                    text: $hiddenSSID
-                )
-                .textFieldStyle(.roundedBorder)
-
-                Button(NSLocalizedString("wifi.scan", comment: "")) {
-                    guard let data = hiddenSSID.data(using: .utf8), !data.isEmpty else {
-                        return
-                    }
-
-                    Task {
-                        await controls.scanNetworks(includeHidden: true, ssidData: data)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(hiddenSSID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-    }
-
-    private var networkOperationIsPending: Bool {
-        controls.networkOperationState.isPending
-    }
-
-    private func openNetwork(_ network: WiFiNetworkCandidate) {
-        if network.selectableAccessPoints.count > 1 {
-            accessPointCandidate = network
-            showsAccessPointSelection = true
-        } else {
-            selectedCandidate = network
-        }
-    }
-
     private func isCurrentNetwork(_ network: WiFiNetworkCandidate) -> Bool {
-        if let ssidData = snapshot.network.ssidData {
-            return ssidData == network.ssidData
+        if let currentSSIDData {
+            return currentSSIDData == network.ssidData
         }
 
-        return snapshot.network.name != nil && snapshot.network.name == network.displayName
+        return currentNetworkName != nil && currentNetworkName == network.displayName
     }
 
     private func signalSymbol(for rssi: Int) -> String {
         switch NetworkSignalMapper.level(forRSSI: rssi) {
-        case 4:
-            return "wifi"
-        case 3:
-            return "wifi"
-        case 2:
+        case 4, 3, 2:
             return "wifi"
         default:
             return "wifi.exclamationmark"

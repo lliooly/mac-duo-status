@@ -56,7 +56,6 @@
 "wifi.known-networks" = "已知网络";
 "wifi.other-networks" = "其他网络";
 "wifi.hidden-network" = "隐藏网络";
-"wifi.choose-access-point" = "选择接入点";
 "wifi.ssid-placeholder" = "输入网络名称";
 "wifi.settings" = "Wi-Fi 设置…";
 "wifi.no-networks" = "未发现网络";
@@ -91,6 +90,7 @@
 "common.apply" = "应用";
 
 "control.error.network-not-found" = "未找到网络";
+"control.error.credentials-required" = "请输入网络密码或凭据";
 "control.error.authentication-failed" = "认证失败";
 "control.error.unsupported-security" = "暂不支持此安全类型";
 "control.error.authorization-required" = "需要授权";

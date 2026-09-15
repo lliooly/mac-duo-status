@@ -4,20 +4,27 @@
 //
 
 import Foundation
+import AppKit
 import Security
 import SwiftUI
 
 struct WiFiCredentialView: View {
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var controls: ControlCoordinator
 
     let candidate: WiFiNetworkCandidate
+    let onBack: () -> Void
 
     @State private var password = ""
     @State private var username = ""
     @State private var rememberNetwork = false
     @State private var identities: [KeychainIdentityOption] = []
     @State private var selectedIdentityIndex = -1
+    @FocusState private var focusedField: CredentialField?
+
+    private enum CredentialField: Hashable {
+        case username
+        case password
+    }
 
     private var security: WiFiSecurity {
         candidate.primarySecurity
@@ -32,10 +39,6 @@ struct WiFiCredentialView: View {
     }
 
     private var canSubmit: Bool {
-        guard security != .unknown else {
-            return false
-        }
-
         if isEnterprise {
             return !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                 !password.isEmpty ||
@@ -47,12 +50,28 @@ struct WiFiCredentialView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(candidate.displayName ?? NSLocalizedString("wifi.hidden", comment: ""))
-                .font(.system(size: 16, weight: .semibold))
+            HStack(spacing: 8) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(NSLocalizedString("common.back", comment: ""))
 
-            Text(security.displayName)
-                .font(.system(size: 11))
-                .foregroundStyle(DuoStatusStyle.muted)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(candidate.displayName ?? NSLocalizedString("wifi.hidden", comment: ""))
+                        .font(.system(size: 16, weight: .semibold))
+                        .lineLimit(1)
+
+                    Text(security.displayName)
+                        .font(.system(size: 11))
+                        .foregroundStyle(DuoStatusStyle.muted)
+                }
+
+                Spacer(minLength: 0)
+            }
 
             if isEnterprise {
                 TextField(
@@ -60,12 +79,16 @@ struct WiFiCredentialView: View {
                     text: $username
                 )
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .username)
+                .accessibilityIdentifier("wifi-username")
 
                 SecureField(
                     NSLocalizedString("wifi.password", comment: ""),
                     text: $password
                 )
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .password)
+                .accessibilityIdentifier("wifi-password")
 
                 Picker(
                     NSLocalizedString("wifi.identity", comment: ""),
@@ -86,6 +109,8 @@ struct WiFiCredentialView: View {
                     text: $password
                 )
                 .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .password)
+                .accessibilityIdentifier("wifi-password")
             }
 
             Toggle(
@@ -93,12 +118,6 @@ struct WiFiCredentialView: View {
                 isOn: $rememberNetwork
             )
             .toggleStyle(.checkbox)
-
-            if security == .unknown {
-                Text(NSLocalizedString("control.error.unsupported-security", comment: ""))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-            }
 
             if case let .failed(error) = controls.networkOperationState {
                 Text(NSLocalizedString(error.localizationKey, comment: ""))
@@ -110,7 +129,7 @@ struct WiFiCredentialView: View {
                 Spacer(minLength: 0)
 
                 Button(NSLocalizedString("common.cancel", comment: "")) {
-                    dismiss()
+                    onBack()
                 }
                 .keyboardShortcut(.cancelAction)
 
@@ -126,6 +145,10 @@ struct WiFiCredentialView: View {
         .frame(width: 320)
         .task {
             identities = KeychainIdentityStore.identities()
+            focusFirstField()
+        }
+        .onAppear {
+            focusFirstField()
         }
     }
 
@@ -147,15 +170,38 @@ struct WiFiCredentialView: View {
         }
 
         Task {
-            await controls.connect(
+            let error = await controls.connect(
                 to: candidate,
                 credential: credential,
                 remember: rememberNetwork
             )
 
-            if case .succeeded = controls.networkOperationState {
-                dismiss()
+            if error == nil {
+                onBack()
             }
+        }
+    }
+
+    private func focusFirstField() {
+        let field: CredentialField?
+        if isEnterprise {
+            field = .username
+        } else if requiresPassword {
+            field = .password
+        } else {
+            field = nil
+        }
+
+        guard let field else {
+            return
+        }
+
+        // MenuBarExtra uses a non-activating panel. Wait for the view to be laid
+        // out before asking SwiftUI to bridge focus to the AppKit text field.
+        DispatchQueue.main.async {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            NSApplication.shared.keyWindow?.makeKey()
+            focusedField = field
         }
     }
 }

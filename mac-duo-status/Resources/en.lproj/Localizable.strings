@@ -56,7 +56,6 @@
 "wifi.known-networks" = "Known Networks";
 "wifi.other-networks" = "Other Networks";
 "wifi.hidden-network" = "Hidden Network";
-"wifi.choose-access-point" = "Choose Access Point";
 "wifi.ssid-placeholder" = "Network name";
 "wifi.settings" = "Wi-Fi Settings…";
 "wifi.no-networks" = "No networks found";
@@ -91,6 +90,7 @@
 "common.apply" = "Apply";
 
 "control.error.network-not-found" = "Network not found";
+"control.error.credentials-required" = "Enter the network password or credentials";
 "control.error.authentication-failed" = "Authentication failed";
 "control.error.unsupported-security" = "This security type is not supported";
 "control.error.authorization-required" = "Authorization required";
