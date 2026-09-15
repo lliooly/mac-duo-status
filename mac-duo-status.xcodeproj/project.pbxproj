@@ -6,6 +6,11 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000010000000000000012 /* DuoStatusPowerHelper in app executables */ = {isa = PBXBuildFile; fileRef = A10000010000000000000001 /* DuoStatusPowerHelper */; };
+		A10000010000000000000013 /* power helper launchd plist */ = {isa = PBXBuildFile; fileRef = A1000001000000000000000D /* com.shishishi3.duo-status.power-helper.plist */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0F69FE36305811FC002C656F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +26,21 @@
 			remoteGlobalIDString = 0F69FE25305811FB002C656F;
 			remoteInfo = "mac-duo-status";
 		};
+		A1000001000000000000000E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0F69FE1E305811FB002C656F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000010000000000000003;
+			remoteInfo = "DuoStatusPowerHelper";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0F69FE26305811FB002C656F /* mac-duo-status.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "mac-duo-status.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F69FE35305811FC002C656F /* mac-duo-statusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "mac-duo-statusTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0F69FE3F305811FC002C656F /* mac-duo-statusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "mac-duo-statusUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000010000000000000001 /* DuoStatusPowerHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "com.shishishi3.duo-status.power-helper"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000001000000000000000D /* com.shishishi3.duo-status.power-helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +57,11 @@
 		0F69FE42305811FC002C656F /* mac-duo-statusUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "mac-duo-statusUITests";
+			sourceTree = "<group>";
+		};
+		A10000010000000000000002 /* DuoStatusPowerHelper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DuoStatusPowerHelper;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +82,11 @@
 			files = (
 			);
 		};
+		A10000010000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -72,6 +96,7 @@
 				0F69FE28305811FB002C656F /* mac-duo-status */,
 				0F69FE38305811FC002C656F /* mac-duo-statusTests */,
 				0F69FE42305811FC002C656F /* mac-duo-statusUITests */,
+				A10000010000000000000002 /* DuoStatusPowerHelper */,
 				0F69FE27305811FB002C656F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -82,6 +107,7 @@
 				0F69FE26305811FB002C656F /* mac-duo-status.app */,
 				0F69FE35305811FC002C656F /* mac-duo-statusTests.xctest */,
 				0F69FE3F305811FC002C656F /* mac-duo-statusUITests.xctest */,
+				A10000010000000000000001 /* DuoStatusPowerHelper */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,8 +122,13 @@
 				0F69FE22305811FB002C656F /* Sources */,
 				0F69FE23305811FB002C656F /* Frameworks */,
 				0F69FE24305811FB002C656F /* Resources */,
+				A10000010000000000000010 /* Embed power helper */,
+				A10000010000000000000011 /* Embed power helper launchd plist */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				A1000001000000000000000F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0F69FE28305811FB002C656F /* mac-duo-status */,
@@ -106,6 +137,24 @@
 			productName = "mac-duo-status";
 			productReference = 0F69FE26305811FB002C656F /* mac-duo-status.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000010000000000000003 /* DuoStatusPowerHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000010000000000000007 /* Build configuration list for PBXNativeTarget "DuoStatusPowerHelper" */;
+			buildPhases = (
+				A10000010000000000000004 /* Sources */,
+				A10000010000000000000005 /* Frameworks */,
+				A10000010000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000010000000000000002 /* DuoStatusPowerHelper */,
+			);
+			name = DuoStatusPowerHelper;
+			productName = "com.shishishi3.duo-status.power-helper";
+			productReference = A10000010000000000000001 /* DuoStatusPowerHelper */;
+			productType = "com.apple.product-type.tool";
 		};
 		0F69FE34305811FC002C656F /* mac-duo-statusTests */ = {
 			isa = PBXNativeTarget;
@@ -162,6 +211,9 @@
 					0F69FE25305811FB002C656F = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					A10000010000000000000003 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					0F69FE34305811FC002C656F = {
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 0F69FE25305811FB002C656F;
@@ -188,6 +240,7 @@
 			projectRoot = "";
 			targets = (
 				0F69FE25305811FB002C656F /* mac-duo-status */,
+				A10000010000000000000003 /* DuoStatusPowerHelper */,
 				0F69FE34305811FC002C656F /* mac-duo-statusTests */,
 				0F69FE3E305811FC002C656F /* mac-duo-statusUITests */,
 			);
@@ -196,6 +249,11 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		0F69FE24305811FB002C656F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A10000010000000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -228,7 +286,37 @@
 			files = (
 			);
 		};
+		A10000010000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000010000000000000010 /* Embed power helper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				A10000010000000000000012 /* DuoStatusPowerHelper in app executables */,
+			);
+			name = "Embed power helper";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000010000000000000011 /* Embed power helper launchd plist */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "Contents/Library/LaunchDaemons";
+			dstSubfolderSpec = 1;
+			files = (
+				A10000010000000000000013 /* power helper launchd plist */,
+			);
+			name = "Embed power helper launchd plist";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		0F69FE37305811FC002C656F /* PBXTargetDependency */ = {
@@ -240,6 +328,11 @@
 			isa = PBXTargetDependency;
 			target = 0F69FE25305811FB002C656F /* mac-duo-status */;
 			targetProxy = 0F69FE40305811FC002C656F /* PBXContainerItemProxy */;
+		};
+		A1000001000000000000000F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000010000000000000003 /* DuoStatusPowerHelper */;
+			targetProxy = A1000001000000000000000E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -373,7 +466,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PM2QH96LXN;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -407,7 +500,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PM2QH96LXN;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -427,6 +520,43 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A10000010000000000000008 /* Debug configuration for PBXNativeTarget "DuoStatusPowerHelper" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PM2QH96LXN;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.shishishi3.mac-duo-status.power-helper";
+				PRODUCT_NAME = "com.shishishi3.duo-status.power-helper";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A10000010000000000000009 /* Release configuration for PBXNativeTarget "DuoStatusPowerHelper" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PM2QH96LXN;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.shishishi3.mac-duo-status.power-helper";
+				PRODUCT_NAME = "com.shishishi3.duo-status.power-helper";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -528,6 +658,14 @@
 			buildConfigurations = (
 				0F69FE48305811FC002C656F /* Debug configuration for PBXNativeTarget "mac-duo-status" */,
 				0F69FE49305811FC002C656F /* Release configuration for PBXNativeTarget "mac-duo-status" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A10000010000000000000007 /* Build configuration list for PBXNativeTarget "DuoStatusPowerHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000010000000000000008 /* Debug configuration for PBXNativeTarget "DuoStatusPowerHelper" */,
+				A10000010000000000000009 /* Release configuration for PBXNativeTarget "DuoStatusPowerHelper" */,
 			);
 			defaultConfigurationName = Release;
 		};

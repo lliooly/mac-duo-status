@@ -1,0 +1,6 @@
+# Xcode build products
+build/
+DerivedData/
+
+# macOS metadata
+.DS_Store
