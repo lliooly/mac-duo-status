@@ -245,7 +245,7 @@ struct WiFiControlView: View {
         .buttonStyle(.plain)
         .opacity(isUnavailable ? 0.52 : 1)
         .disabled(isUnavailable)
-        .accessibilityIdentifier("wifi-network-(network.id)")
+        .accessibilityIdentifier("wifi-network-\(network.id)")
     }
 
     private var hiddenNetworkEntry: some View {

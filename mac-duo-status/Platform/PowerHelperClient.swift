@@ -30,12 +30,12 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             )
         }
 
-        let connection = makeConnection()
+        let connection = XPCConnectionBox(makeConnection())
         return await withCheckedContinuation { continuation in
             let finish = Once {
                 connection.invalidate()
             }
-            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
                     continuation.resume(returning: self.unavailableCapabilities())
                 }
@@ -92,12 +92,12 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             throw ControlError.temporarilyUnavailable
         }
 
-        let connection = makeConnection()
+        let connection = XPCConnectionBox(makeConnection())
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let finish = Once {
                 connection.invalidate()
             }
-            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
@@ -126,12 +126,12 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             return nil
         }
 
-        let connection = makeConnection()
+        let connection = XPCConnectionBox(makeConnection())
         return await withCheckedContinuation { continuation in
             let finish = Once {
                 connection.invalidate()
             }
-            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
                     continuation.resume(returning: nil)
                 }
@@ -167,12 +167,12 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             throw ControlError.invalidChargeLimit
         }
 
-        let connection = makeConnection()
+        let connection = XPCConnectionBox(makeConnection())
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let finish = Once {
                 connection.invalidate()
             }
-            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
@@ -201,12 +201,12 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             return nil
         }
 
-        let connection = makeConnection()
+        let connection = XPCConnectionBox(makeConnection())
         return await withCheckedContinuation { continuation in
             let finish = Once {
                 connection.invalidate()
             }
-            let proxy = connection.remoteObjectProxyWithErrorHandler { _ in
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
                     continuation.resume(returning: nil)
                 }
@@ -317,5 +317,17 @@ private final class Once: @unchecked Sendable {
         lock.unlock()
         action()
         body()
+    }
+}
+
+private final class XPCConnectionBox: @unchecked Sendable {
+    let connection: NSXPCConnection
+
+    init(_ connection: NSXPCConnection) {
+        self.connection = connection
+    }
+
+    func invalidate() {
+        connection.invalidate()
     }
 }

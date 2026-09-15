@@ -32,30 +32,36 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                 throw ControlError.temporarilyUnavailable
             }
 
-            guard interface.powerOn() else {
-                throw ControlError.temporarilyUnavailable
-            }
-
             let networks: Set<CWNetwork>
-            do {
-                let result = try interface.scanForNetworks(
-                    withSSID: ssidData,
-                    includeHidden: includeHidden
-                )
-                networks = result
-            } catch let error as NSError {
-                throw map(error: error)
+            if interface.powerOn() {
+                do {
+                    let result = try interface.scanForNetworks(
+                        withSSID: ssidData,
+                        includeHidden: includeHidden
+                    )
+                    networks = result
+                } catch let error as NSError {
+                    throw map(error: error)
+                }
+            } else {
+                guard ssidData == nil else {
+                    throw ControlError.temporarilyUnavailable
+                }
+
+                // Wi-Fi 关闭时仍然返回系统已保存的网络，供 UI 展示为不可用状态。
+                networks = []
             }
 
             let token = UUID()
             let networkList = Array(networks)
+            let interfaceName = interface.interfaceName ?? "en0"
             let profiles = interface.configuration()?.networkProfiles.compactMap {
                 $0 as? CWNetworkProfile
             } ?? []
             let candidates = merge(
                 networks: networkList,
                 profiles: profiles,
-                interfaceName: interface.interfaceName ?? "en0",
+                interfaceName: interfaceName,
                 scanToken: token
             )
 
@@ -64,7 +70,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             }
 
             lastScanToken = token
-            lastInterfaceName = interface.interfaceName
+            lastInterfaceName = interfaceName
             var cachedNetworks: [Data: [CWNetwork]] = [:]
             for network in networkList {
                 guard let ssidData = network.ssidData else {
@@ -231,9 +237,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         _ target: WiFiNetworkCandidate,
         interface: CWInterface
     ) throws {
-        guard let security = target.supportedSecurity
-            .compactMap(nativeSecurity(for:))
-            .first
+        guard let security = nativeSecurity(for: target.primarySecurity)
         else {
             throw ControlError.unsupportedSecurity
         }
@@ -404,6 +408,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let result else {
+            return nil
+        }
+
+        guard CFGetTypeID(result) == SecIdentityGetTypeID() else {
             return nil
         }
 

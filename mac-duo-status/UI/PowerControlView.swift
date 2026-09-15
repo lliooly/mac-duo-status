@@ -109,7 +109,7 @@ struct PowerControlView: View {
                 HStack(spacing: 10) {
                     Slider(value: $selectedChargeLimit, in: 80...100, step: 1)
 
-                    Text("(Int(selectedChargeLimit.rounded()))%")
+                    Text("\(Int(selectedChargeLimit.rounded()))%")
                         .font(.system(size: 11, weight: .medium))
                         .frame(width: 40, alignment: .trailing)
                 }

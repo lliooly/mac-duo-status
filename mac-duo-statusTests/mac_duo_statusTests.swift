@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import mac_duo_status
 
+@MainActor
 struct mac_duo_statusTests {
     @Test func cpuScoreUsesTheConfirmedFormula() {
         #expect(HealthScoreCalculator.cpuScore(usagePercent: 25) == 0.75)
@@ -168,6 +169,24 @@ struct mac_duo_statusTests {
         #expect(merged.first?.supportedSecurity == [.wpa2Personal, .wpa3Personal])
     }
 
+    @Test func wifiPrimarySecurityPrefersTheStrongestSupportedFamily() {
+        let candidate = WiFiNetworkCandidate(
+            id: "wifi",
+            interfaceName: "en0",
+            ssidData: Data([4, 5, 6]),
+            displayName: "Office",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal, .wpa3Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: UUID()
+        )
+
+        #expect(candidate.primarySecurity == .wpa3Personal)
+    }
+
     @Test func chargeLimitValidatorKeepsTheSystemRange() {
         #expect(ChargeLimitValidator.isInSystemRange(80))
         #expect(ChargeLimitValidator.isInSystemRange(100))
@@ -175,6 +194,28 @@ struct mac_duo_statusTests {
         #expect(!ChargeLimitValidator.isInSystemRange(101))
         #expect(ChargeLimitValidator.isAllowed(90, values: Set(80...100)))
         #expect(!ChargeLimitValidator.isAllowed(90, values: [80, 85, 95, 100]))
+    }
+
+    @Test func powerCapabilitiesSeparateAuthorizationFromSupport() {
+        let authorized = PowerCapabilities(
+            energyModeScopes: [],
+            supportedPowerModes: [],
+            chargeLimitValues: Set(80...100),
+            requiresHelper: true,
+            helperStatus: .authorized
+        )
+        let waitingForApproval = PowerCapabilities(
+            energyModeScopes: [],
+            supportedPowerModes: [],
+            chargeLimitValues: [],
+            requiresHelper: true,
+            helperStatus: .requiresApproval
+        )
+        let unsupported = PowerCapabilities.unsupported
+
+        #expect(authorized.chargeLimitState == .available)
+        #expect(waitingForApproval.chargeLimitState == .authorizationRequired)
+        #expect(unsupported.chargeLimitState == .unsupported)
     }
 
     @Test func controlStateOnlyMarksPendingOperationsAsBusy() {
@@ -219,9 +260,9 @@ struct mac_duo_statusTests {
         let network = await PlaceholderNetworkProvider().read()
         let health = await PlaceholderHealthProvider().read()
 
-        let batteryIsAvailable = await battery.availability.isAvailable
-        let networkIsAvailable = await network.availability.isAvailable
-        let healthIsAvailable = await health.availability.isAvailable
+        let batteryIsAvailable = battery.availability.isAvailable
+        let networkIsAvailable = network.availability.isAvailable
+        let healthIsAvailable = health.availability.isAvailable
 
         #expect(batteryIsAvailable == false)
         #expect(networkIsAvailable == false)

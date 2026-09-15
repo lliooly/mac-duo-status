@@ -110,7 +110,7 @@ final class SystemStatusStore: ObservableObject {
 
     private func startProviderObservers() {
         let handler: @Sendable () -> Void = { [weak self] in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.refreshNow()
             }
         }
@@ -128,7 +128,7 @@ final class SystemStatusStore: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.pauseSamplingForSleep()
                 }
             },
@@ -137,7 +137,7 @@ final class SystemStatusStore: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.resumeSamplingAfterWake()
                 }
             }
