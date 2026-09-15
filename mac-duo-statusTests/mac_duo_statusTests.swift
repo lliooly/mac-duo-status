@@ -142,7 +142,8 @@ struct mac_duo_statusTests {
             isHidden: false,
             isKnown: false,
             hotspotConfirmation: .unavailable,
-            scanToken: token
+            scanToken: token,
+            isDiscovered: true
         )
         let strong = WiFiNetworkCandidate(
             id: "strong",
@@ -155,7 +156,8 @@ struct mac_duo_statusTests {
             isHidden: false,
             isKnown: false,
             hotspotConfirmation: .unavailable,
-            scanToken: token
+            scanToken: token,
+            isDiscovered: true
         )
 
         let merged = WiFiNetworkCandidateMerger.merge(
@@ -167,15 +169,146 @@ struct mac_duo_statusTests {
         #expect(merged.first?.isKnown == true)
         #expect(merged.first?.bssid == strong.bssid)
         #expect(merged.first?.supportedSecurity == [.wpa2Personal, .wpa3Personal])
+    }
+
+    @Test func wifiGroupingExcludesKnownNetworksNotDiscoveredByTheCurrentScan() {
+        let token = UUID()
+        let savedOnly = WiFiNetworkCandidate(
+            id: "saved-only",
+            interfaceName: "en0",
+            ssidData: Data([20]),
+            displayName: "Saved Only",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: token
+        )
+        let discoveredKnown = WiFiNetworkCandidate(
+            id: "discovered-known",
+            interfaceName: "en0",
+            ssidData: Data([21]),
+            displayName: "Discovered Known",
+            bssid: "00:00:00:00:00:21",
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: token,
+            isDiscovered: true
+        )
+        let other = WiFiNetworkCandidate(
+            id: "other",
+            interfaceName: "en0",
+            ssidData: Data([22]),
+            displayName: "Other",
+            bssid: "00:00:00:00:00:22",
+            supportedSecurity: [.open],
+            rssi: nil,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token,
+            isDiscovered: true
+        )
+
+        let candidates = [savedOnly, discoveredKnown, other]
+
         #expect(
-            Set(merged.first?.selectableAccessPoints.map(\.bssid) ?? []) ==
-                Set([weak.bssid!, strong.bssid!])
+            WiFiNetworkCandidateGrouping.knownNetworks(from: candidates).map(\.id) ==
+                [discoveredKnown.id]
         )
-        let selected = merged.first!.selectingAccessPoint(
-            WiFiAccessPoint(bssid: weak.bssid!, rssi: weak.rssi)
+        #expect(
+            WiFiNetworkCandidateGrouping.otherNetworks(from: candidates).map(\.id) ==
+                [other.id]
         )
-        #expect(selected.bssid == weak.bssid)
-        #expect(selected.rssi == weak.rssi)
+    }
+
+    @Test func wifiMergingKnownAndScannedNetworksMarksTheResultAsDiscovered() {
+        let token = UUID()
+        let known = WiFiNetworkCandidate(
+            id: "known",
+            interfaceName: "en0",
+            ssidData: Data([23]),
+            displayName: "Office",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: token
+        )
+        let scanned = WiFiNetworkCandidate(
+            id: "scanned",
+            interfaceName: "en0",
+            ssidData: Data([23]),
+            displayName: "Office",
+            bssid: "00:00:00:00:00:23",
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token,
+            isDiscovered: true
+        )
+
+        let merged = WiFiNetworkCandidateMerger.merge(
+            knownNetworks: [known],
+            scannedNetworks: [scanned]
+        )
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.isKnown == true)
+        #expect(merged.first?.isDiscovered == true)
+    }
+
+    @Test func wifiMergingMultipleAccessPointsKeepsUnconfiguredNetworkAsOther() {
+        let token = UUID()
+        let firstAccessPoint = WiFiNetworkCandidate(
+            id: "first-access-point",
+            interfaceName: "en0",
+            ssidData: Data([24]),
+            displayName: "Guest",
+            bssid: "00:00:00:00:00:24",
+            supportedSecurity: [.open],
+            rssi: -65,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token,
+            isDiscovered: true
+        )
+        let secondAccessPoint = WiFiNetworkCandidate(
+            id: "second-access-point",
+            interfaceName: "en0",
+            ssidData: Data([24]),
+            displayName: "Guest",
+            bssid: "00:00:00:00:00:25",
+            supportedSecurity: [.open],
+            rssi: -55,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token,
+            isDiscovered: true
+        )
+
+        let merged = WiFiNetworkCandidateMerger.merge(
+            knownNetworks: [],
+            scannedNetworks: [firstAccessPoint, secondAccessPoint]
+        )
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.isKnown == false)
+        #expect(
+            WiFiNetworkCandidateGrouping.otherNetworks(from: merged).map(\.id) ==
+                [merged.first?.id].compactMap { $0 }
+        )
     }
 
     @Test func wifiPrimarySecurityPrefersTheStrongestSupportedFamily() {
@@ -285,6 +418,50 @@ struct mac_duo_statusTests {
         #expect(controls.networkOperationState == .succeeded)
         #expect(controls.lastNetworkRememberRequest)
         #expect(controls.lastNetworkResult?.wasRemembered == false)
+        #expect(networkControl.connectCalls == 1)
+    }
+
+    @Test
+    func coordinatorSurfacesCredentialsRequiredForNativeFallback() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let networkControl = RecordingNetworkControl(
+            result: WiFiConnectionResult(wasRemembered: false),
+            connectError: .credentialsRequired
+        )
+        let controls = ControlCoordinator(
+            statusStore: makeStatusStore(
+                network: .unavailable(reason: "No network"),
+                defaults: defaults
+            ),
+            networkControl: networkControl,
+            powerControl: PlaceholderPowerControlProvider()
+        )
+        let target = WiFiNetworkCandidate(
+            id: "known-office",
+            interfaceName: "en0",
+            ssidData: Data([12, 13]),
+            displayName: "Known Office",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: UUID(),
+            isDiscovered: true
+        )
+
+        let error = await controls.connect(
+            to: target,
+            credential: nil,
+            remember: false
+        )
+
+        #expect(error == .credentialsRequired)
+        #expect(controls.networkOperationState == .failed(.credentialsRequired))
         #expect(networkControl.connectCalls == 1)
     }
 
@@ -740,10 +917,15 @@ private struct FixedHealthProvider: HealthProviding {
 @MainActor
 private final class RecordingNetworkControl: NetworkControlProviding {
     let result: WiFiConnectionResult
+    let connectError: ControlError?
     private(set) var connectCalls = 0
 
-    init(result: WiFiConnectionResult) {
+    init(
+        result: WiFiConnectionResult,
+        connectError: ControlError? = nil
+    ) {
         self.result = result
+        self.connectError = connectError
     }
 
     func scan(
@@ -761,6 +943,9 @@ private final class RecordingNetworkControl: NetworkControlProviding {
         remember: Bool
     ) async throws -> WiFiConnectionResult {
         connectCalls += 1
+        if let connectError {
+            throw connectError
+        }
         return result
     }
 }
