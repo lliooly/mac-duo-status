@@ -56,6 +56,7 @@
 "wifi.known-networks" = "Known Networks";
 "wifi.other-networks" = "Other Networks";
 "wifi.hidden-network" = "Hidden Network";
+"wifi.choose-access-point" = "Choose Access Point";
 "wifi.ssid-placeholder" = "Network name";
 "wifi.settings" = "Wi-Fi Settings…";
 "wifi.no-networks" = "No networks found";

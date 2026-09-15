@@ -246,9 +246,9 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         let configuration = currentConfiguration
             .map(CWMutableConfiguration.init(configuration:))
             ?? CWMutableConfiguration()
-            let existingProfiles = configuration.networkProfiles.compactMap {
-                $0 as? CWNetworkProfile
-            }
+        let existingProfiles = configuration.networkProfiles.compactMap {
+            $0 as? CWNetworkProfile
+        }
         let existingProfile = existingProfiles.first { profile in
             profile.ssidData == target.ssidData && profile.security == security
         }
@@ -311,6 +311,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             }
             let security = supportedSecurity.isEmpty ? [.unknown] : supportedSecurity
             let isKnown = bySSID[ssidData] != nil
+            let rssi = network.rssiValue == 0 ? nil : network.rssiValue
+            let accessPoints = network.bssid.map {
+                [WiFiAccessPoint(bssid: $0, rssi: rssi)]
+            } ?? []
             let candidate = WiFiNetworkCandidate(
                 id: candidateID(ssidData: ssidData, bssid: network.bssid),
                 interfaceName: interfaceName,
@@ -318,11 +322,12 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                 displayName: network.ssid,
                 bssid: network.bssid,
                 supportedSecurity: security,
-                rssi: network.rssiValue == 0 ? nil : network.rssiValue,
+                rssi: rssi,
                 isHidden: network.ssid == nil,
                 isKnown: isKnown,
                 hotspotConfirmation: .unavailable,
-                scanToken: scanToken
+                scanToken: scanToken,
+                accessPoints: accessPoints
             )
 
             if let existing = bySSID[ssidData] {
@@ -340,7 +345,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                     isHidden: existing.isHidden && candidate.isHidden,
                     isKnown: true,
                     hotspotConfirmation: .unavailable,
-                    scanToken: scanToken
+                    scanToken: scanToken,
+                    accessPoints: WiFiAccessPointMerger.merge(
+                        existing.selectableAccessPoints + candidate.selectableAccessPoints
+                    )
                 )
             } else {
                 bySSID[ssidData] = candidate

@@ -56,6 +56,7 @@
 "wifi.known-networks" = "已知网络";
 "wifi.other-networks" = "其他网络";
 "wifi.hidden-network" = "隐藏网络";
+"wifi.choose-access-point" = "选择接入点";
 "wifi.ssid-placeholder" = "输入网络名称";
 "wifi.settings" = "Wi-Fi 设置…";
 "wifi.no-networks" = "未发现网络";

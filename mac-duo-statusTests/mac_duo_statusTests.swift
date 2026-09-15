@@ -167,6 +167,15 @@ struct mac_duo_statusTests {
         #expect(merged.first?.isKnown == true)
         #expect(merged.first?.bssid == strong.bssid)
         #expect(merged.first?.supportedSecurity == [.wpa2Personal, .wpa3Personal])
+        #expect(
+            Set(merged.first?.selectableAccessPoints.map(\.bssid) ?? []) ==
+                Set([weak.bssid!, strong.bssid!])
+        )
+        let selected = merged.first!.selectingAccessPoint(
+            WiFiAccessPoint(bssid: weak.bssid!, rssi: weak.rssi)
+        )
+        #expect(selected.bssid == weak.bssid)
+        #expect(selected.rssi == weak.rssi)
     }
 
     @Test func wifiPrimarySecurityPrefersTheStrongestSupportedFamily() {
@@ -313,7 +322,7 @@ struct mac_duo_statusTests {
             scanToken: UUID()
         )
 
-        await controls.connect(to: target, credential: .none, remember: false)
+        await controls.connect(to: target, credential: WiFiCredential.none, remember: false)
 
         #expect(controls.networkOperationState == .failed(.operationTimeout))
         #expect(controls.lastNetworkResult == nil)

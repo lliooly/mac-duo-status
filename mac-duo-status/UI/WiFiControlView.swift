@@ -13,6 +13,8 @@ struct WiFiControlView: View {
     let onBack: () -> Void
 
     @State private var selectedCandidate: WiFiNetworkCandidate?
+    @State private var accessPointCandidate: WiFiNetworkCandidate?
+    @State private var showsAccessPointSelection = false
     @State private var showsHiddenNetwork = false
     @State private var hiddenSSID = ""
 
@@ -112,6 +114,34 @@ struct WiFiControlView: View {
             WiFiCredentialView(candidate: candidate)
                 .environmentObject(controls)
         }
+        .confirmationDialog(
+            NSLocalizedString("wifi.choose-access-point", comment: ""),
+            isPresented: $showsAccessPointSelection,
+            titleVisibility: .visible
+        ) {
+            if let candidate = accessPointCandidate {
+                ForEach(candidate.selectableAccessPoints) { accessPoint in
+                    Button {
+                        selectedCandidate = candidate.selectingAccessPoint(accessPoint)
+                        accessPointCandidate = nil
+                    } label: {
+                        HStack {
+                            Text(accessPoint.bssid)
+                            Spacer(minLength: 12)
+                            if let rssi = accessPoint.rssi {
+                                Text("\(rssi) dBm")
+                                    .foregroundStyle(DuoStatusStyle.muted)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("wifi-bssid-\(accessPoint.id)")
+                }
+            }
+
+            Button(NSLocalizedString("common.cancel", comment: ""), role: .cancel) {
+                accessPointCandidate = nil
+            }
+        }
     }
 
     private var header: some View {
@@ -206,7 +236,7 @@ struct WiFiControlView: View {
             guard !isUnavailable else {
                 return
             }
-            selectedCandidate = network
+            openNetwork(network)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: network.primarySecurity == .open ? "wifi" : "lock.fill")
@@ -236,6 +266,13 @@ struct WiFiControlView: View {
                     Image(systemName: signalSymbol(for: rssi))
                         .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(DuoStatusStyle.muted)
+                }
+
+                if network.selectableAccessPoints.count > 1 {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(DuoStatusStyle.muted)
+                        .accessibilityHidden(true)
                 }
             }
             .padding(.horizontal, 8)
@@ -278,6 +315,15 @@ struct WiFiControlView: View {
 
     private var networkOperationIsPending: Bool {
         controls.networkOperationState.isPending
+    }
+
+    private func openNetwork(_ network: WiFiNetworkCandidate) {
+        if network.selectableAccessPoints.count > 1 {
+            accessPointCandidate = network
+            showsAccessPointSelection = true
+        } else {
+            selectedCandidate = network
+        }
     }
 
     private func isCurrentNetwork(_ network: WiFiNetworkCandidate) -> Bool {

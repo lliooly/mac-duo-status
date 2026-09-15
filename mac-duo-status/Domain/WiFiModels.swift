@@ -73,6 +73,13 @@ enum HotspotConfirmation: String, Hashable, Sendable {
     case unavailable
 }
 
+struct WiFiAccessPoint: Hashable, Identifiable, Sendable {
+    let bssid: String
+    let rssi: Int?
+
+    var id: String { bssid }
+}
+
 struct WiFiNetworkCandidate: Hashable, Identifiable, Sendable {
     let id: String
     let interfaceName: String
@@ -85,6 +92,40 @@ struct WiFiNetworkCandidate: Hashable, Identifiable, Sendable {
     let isKnown: Bool
     let hotspotConfirmation: HotspotConfirmation
     let scanToken: UUID
+    let accessPoints: [WiFiAccessPoint]
+
+    nonisolated init(
+        id: String,
+        interfaceName: String,
+        ssidData: Data,
+        displayName: String?,
+        bssid: String?,
+        supportedSecurity: Set<WiFiSecurity>,
+        rssi: Int?,
+        isHidden: Bool,
+        isKnown: Bool,
+        hotspotConfirmation: HotspotConfirmation,
+        scanToken: UUID,
+        accessPoints: [WiFiAccessPoint] = []
+    ) {
+        self.id = id
+        self.interfaceName = interfaceName
+        self.ssidData = ssidData
+        self.displayName = displayName
+        self.bssid = bssid
+        self.supportedSecurity = supportedSecurity
+        self.rssi = rssi
+        self.isHidden = isHidden
+        self.isKnown = isKnown
+        self.hotspotConfirmation = hotspotConfirmation
+        self.scanToken = scanToken
+        self.accessPoints = accessPoints
+    }
+
+    nonisolated var selectableAccessPoints: [WiFiAccessPoint] {
+        let current = bssid.map { WiFiAccessPoint(bssid: $0, rssi: rssi) }
+        return WiFiAccessPointMerger.merge(accessPoints + (current.map { [$0] } ?? []))
+    }
 
     var primarySecurity: WiFiSecurity {
         let order: [WiFiSecurity] = [
@@ -106,6 +147,70 @@ struct WiFiNetworkCandidate: Hashable, Identifiable, Sendable {
         ]
 
         return order.first(where: supportedSecurity.contains) ?? .unknown
+    }
+
+    nonisolated func selectingAccessPoint(
+        _ accessPoint: WiFiAccessPoint
+    ) -> WiFiNetworkCandidate {
+        WiFiNetworkCandidate(
+            id: id,
+            interfaceName: interfaceName,
+            ssidData: ssidData,
+            displayName: displayName,
+            bssid: accessPoint.bssid,
+            supportedSecurity: supportedSecurity,
+            rssi: accessPoint.rssi,
+            isHidden: isHidden,
+            isKnown: isKnown,
+            hotspotConfirmation: hotspotConfirmation,
+            scanToken: scanToken,
+            accessPoints: accessPoints
+        )
+    }
+}
+
+enum WiFiAccessPointMerger {
+    nonisolated static func merge(_ accessPoints: [WiFiAccessPoint]) -> [WiFiAccessPoint] {
+        var byBSSID: [String: WiFiAccessPoint] = [:]
+
+        for accessPoint in accessPoints {
+            if let existing = byBSSID[accessPoint.bssid] {
+                byBSSID[accessPoint.bssid] = preferred(existing, accessPoint)
+            } else {
+                byBSSID[accessPoint.bssid] = accessPoint
+            }
+        }
+
+        return byBSSID.values.sorted { lhs, rhs in
+            switch (lhs.rssi, rhs.rssi) {
+            case let (lhsRSSI?, rhsRSSI?):
+                if lhsRSSI != rhsRSSI {
+                    return lhsRSSI > rhsRSSI
+                }
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                break
+            }
+
+            return lhs.bssid < rhs.bssid
+        }
+    }
+
+    private nonisolated static func preferred(
+        _ lhs: WiFiAccessPoint,
+        _ rhs: WiFiAccessPoint
+    ) -> WiFiAccessPoint {
+        guard let lhsRSSI = lhs.rssi else {
+            return rhs
+        }
+        guard let rhsRSSI = rhs.rssi else {
+            return lhs
+        }
+
+        return rhsRSSI > lhsRSSI ? rhs : lhs
     }
 }
 
@@ -154,7 +259,10 @@ enum WiFiNetworkCandidateMerger {
                 isHidden: existing.isHidden && network.isHidden,
                 isKnown: true,
                 hotspotConfirmation: existing.hotspotConfirmation,
-                scanToken: network.scanToken
+                scanToken: network.scanToken,
+                accessPoints: WiFiAccessPointMerger.merge(
+                    existing.selectableAccessPoints + network.selectableAccessPoints
+                )
             )
         }
 
