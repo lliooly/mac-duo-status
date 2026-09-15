@@ -2,19 +2,23 @@
 
 ## 1. 文档目的
 
-本文档描述 Duo Status 的目标代码边界和数据流，服务于 V1 的骨架搭建和后续实现。
+本文档描述 Duo Status 的代码边界和数据流，覆盖 V1 基础状态能力以及合并后的 Wi-Fi/电源控制层。
 
-V1 只实现本机状态读取、统一状态展示和已确认的本地配置。Wi-Fi 切换属于 V1.1，能源模式、充电上限和非官方电源控制属于 V2。
+当前版本采用混合实现：原有状态链路继续负责只读快照，独立控制层负责用户主动发起的写入。控制能力按平台支持度和授权状态降级，不能写入时仍保持完整的只读体验。
 
 ## 2. 当前工程状态
 
-当前工程已经完成第一版应用骨架：
+当前工程已经完成基础状态与合并控制版本的主要骨架：
 
 - 主场景使用 MenuBarExtra。
 - 设置场景使用 Settings。
 - 领域层包含状态模型、健康分数计算和平滑采样基础。
 - State 层包含 SystemStatusStore、事件/定时刷新和 PreferencesStore。
 - Providers 层包含协议、真实 Apple 平台适配器和测试替身。
+- Control 层包含 Wi-Fi 控制协调器、电源策略控制协议和独立操作状态。
+- CoreWLAN 已接入扫描、已知网络合并、连接和 Wi-Fi 开关；凭据只在当前操作期间存在。
+- 电源策略已接入公开低电量模式读取、能力模型和辅助进程 XPC 合同。实际电源写入后端不可用时，界面明确降级为只读。
+- `DuoStatusPowerHelper` 已作为可签名、可授权的 LaunchDaemon 目标接入工程，但主应用不会因为辅助进程不可用而阻塞启动。
 - UI 层包含组合图标、弹出面板、状态区域和设置面板。
 - 单元测试覆盖纯逻辑、测试替身和统一状态源。
 
@@ -24,20 +28,20 @@ Xcode 默认的 WindowGroup、NavigationSplitView、SwiftData 和 Item 示例已
 
 ## 3. 目标分层
 
-目标结构分为四层：
+目标结构分为四层，并在状态层旁边增加独立控制链路：
 
 1. 应用层：管理 MenuBarExtra、设置窗口和应用生命周期。
 2. 状态层：统一管理状态快照、刷新任务和配置同步。
 3. Provider 层：分别读取电池、网络和系统健康状态。
-4. 平台适配层：封装 Apple API、能力检测和系统设置入口。
+4. 平台适配层：封装 Apple API、辅助进程客户端和系统设置入口。
 
 建议的依赖方向：
 
     UI → SystemStatusStore → Provider protocols → Apple platform adapters
+    UI → ControlCoordinator → Control protocols → CoreWLAN / XPC helper
     UI → PreferencesStore
-    UI → CapabilityManager
 
-UI 不直接调用 IOPowerSources、NWPathMonitor、CoreWLAN 或 Mach API。
+UI 不直接调用 IOPowerSources、NWPathMonitor、CoreWLAN、Mach API 或 XPC。
 
 ## 4. 核心组件
 
@@ -68,7 +72,7 @@ SystemStatusStore 不负责绘制图标，也不负责直接存储用户偏好�
 - 读取低电量模式状态。
 - 提供电池变化通知。
 
-V1 使用 IOPowerSources 读取电池基础信息。能源模式和充电上限只保留未来扩展边界，不在 V1 Provider 中提供写入实现。
+使用 IOPowerSources 读取电池基础信息。电源策略单独由 `PowerPolicyProvider` 读取，避免把策略写入混入基础电池 Provider。
 
 ### 4.3 NetworkProvider
 
@@ -80,8 +84,9 @@ V1 使用 IOPowerSources 读取电池基础信息。能源模式和充电上限�
 - 读取 Wi-Fi RSSI 并映射为信号级别。
 - 区分 Wi-Fi、有线网络、个人热点和未连接。
 - 在无法确认个人热点时回退到普通 Wi-Fi。
+- 提供当前 SSID、BSSID、接口名和 Wi-Fi 开关状态，供控制层在操作完成后重新读取。
 
-连接类型和连接状态使用 NWPathMonitor 补充。Wi-Fi 名称和 RSSI 使用 CoreWLAN。V1 不负责网络切换；切换能力留给 V1.1 的扩展接口。
+连接类型和连接状态使用 NWPathMonitor 补充。Wi-Fi 名称和 RSSI 使用 CoreWLAN。`NetworkProvider` 只负责读状态；`CoreWLANNetworkController` 独立负责扫描、连接和 Wi-Fi 开关。
 
 ### 4.4 HealthProvider
 
@@ -98,20 +103,20 @@ CPU 统计可以使用公共 Mach 接口，系统负载使用 getloadavg，热�
 
 健康分数公式和热状态分值以 product-spec.md 为准。平滑算法、边界限制和采样参数仍待确认。
 
-### 4.5 CapabilityManager
+### 4.5 控制能力与降级
 
-CapabilityManager 判断功能是否：
+控制模型和 `ControlCoordinator` 判断功能是否：
 
 - 不支持。
 - 只能读取。
 - 可以修改。
 - 需要用户授权。
 - 被用户拒绝。
-- 后备实现失败。
+- 辅助进程不可用或写入后读回未确认。
 
-UI 根据 CapabilityManager 决定是否显示区域、只读值或操作控件，不直接根据 macOS 版本硬编码 UI。
+UI 根据能力状态决定是否显示区域、只读值或操作控件，不直接根据 macOS 版本硬编码 UI。Wi-Fi 和电源操作分别维护 pending/succeeded/failed 状态，不能使用乐观更新。
 
-V1 的能力集合主要是读取能力。V1 不申请管理员权限，不接入特权辅助进程。
+Wi-Fi 使用 CoreWLAN 完成本机控制；电源控制使用可选的 `SMAppService` LaunchDaemon 和 XPC 合同。主应用不以 root 运行，也不把管理员密码交给主应用。
 
 ### 4.6 PreferencesStore
 
@@ -135,6 +140,7 @@ PreferencesStore 负责保存：
 - 更新时间。
 - 电池状态。
 - 网络状态。
+- 电源策略状态和辅助进程能力。
 - 系统健康状态。
 - 各 Provider 的可用性和错误状态。
 
@@ -154,6 +160,8 @@ PreferencesStore 负责保存：
 - Wi-Fi RSSI。
 - 信号级别。
 - 是否确认个人热点。
+
+控制结果不直接写入快照；操作成功后必须触发状态源重新读取，由真实读回结果更新快照。
 
 健康状态至少包含：
 
@@ -199,7 +207,11 @@ PreferencesStore 负责保存：
        ↙       ↓       ↘
   MenuBarExtra  Popover  Settings
 
-菜单栏图标只读取状态摘要。弹出面板读取完整快照和操作能力。设置面板读取 PreferencesStore 和 CapabilityManager，并通过统一状态源观察即时同步结果。
+    Popover control action → ControlCoordinator → backend
+                                           ↓
+                                  readback → SystemStatusStore
+
+菜单栏图标只读取状态摘要。弹出面板读取完整快照和操作能力。设置面板读取 PreferencesStore 和能力模型，并通过统一状态源观察即时同步结果。
 
 健康指标在弹出面板中切换时：
 
@@ -222,7 +234,7 @@ PreferencesStore 负责保存：
 
 ## 9. 平台 API 边界
 
-V1 的官方读取适配：
+当前使用的官方读取和控制适配：
 
 - IOPowerSources。
 - Network.framework 的 NWPathMonitor 和 NWPath。
@@ -230,15 +242,12 @@ V1 的官方读取适配：
 - Foundation 的 ProcessInfo。
 - 公共 Mach CPU 统计接口。
 - getloadavg。
+- CoreWLAN 的网络扫描、连接和 Wi-Fi 开关。
+- `SMAppService`、LaunchDaemon 和 XPC，用于可选的电源辅助进程。
 
-V1 不使用：
+工程不使用私有 API、管理员密码采集、任意 shell 拼接或让主应用整体以 root 运行。电源写入后端当前可以返回“不支持/不可用”，此时主应用继续展示公开 API 的只读结果。
 
-- 私有 API。
-- 需要管理员密码的电源写入。
-- 非官方脚本或任意 shell 拼接。
-- 特权辅助进程。
-
-V2 的 UnofficialPowerControlProvider 必须与官方读取 Provider 隔离。后备实现失败时，主应用仍然只能展示官方只读状态。
+由于 macOS 对沙盒主应用与非沙盒 LaunchDaemon 的组合有部署限制，当前主应用 target 不启用 App Sandbox；这不改变主应用不以 root 运行的边界。发布构建仍需使用签名和 notarization 流程验证辅助进程授权。
 
 ## 10. 错误和能力降级
 
@@ -254,12 +263,11 @@ UI 根据状态显示中性图形、简短说明或隐藏对应控件。一个 P
 
 ## 11. 安全边界
 
-- 主应用不以 root 身份运行。
-- V1 不请求管理员权限。
-- 不保存 Wi-Fi 密码、管理员密码或临时授权凭证。
-- 不执行用户可任意拼接的 shell 命令。
-- 未来需要辅助进程时，只允许执行明确、最小范围的电源操作。
-- 所有写入操作都必须重新读取确认。
+- 主应用不以 root 身份运行，也不请求管理员密码。
+- Wi-Fi 凭据只存在于当前连接调用和安全输入控件生命周期内，不写入 UserDefaults、日志或模型持久层。
+- “记住此网络”由用户明确选择，默认关闭；关闭时应用不主动提交配置文件，但不宣称覆盖 macOS 的全局记忆策略。
+- 电源辅助进程仅暴露固定 XPC 方法，并校验调用方签名身份；主应用不执行任意 shell 命令。
+- 所有写入采用 pending → backend → readback → confirmed/writeUnconfirmed 流程。超时、授权失败和后备实现失败都必须如实展示。
 
 ## 12. 骨架阶段不应提前决定的内容
 
