@@ -15,6 +15,7 @@ enum CapabilityState: Equatable, Sendable {
 
 enum ControlError: Error, Equatable, Sendable {
     case networkNotFound
+    case credentialsRequired
     case authenticationFailed
     case unsupportedSecurity
     case authorizationRequired
@@ -30,6 +31,8 @@ enum ControlError: Error, Equatable, Sendable {
         switch self {
         case .networkNotFound:
             return "control.error.network-not-found"
+        case .credentialsRequired:
+            return "control.error.credentials-required"
         case .authenticationFailed:
             return "control.error.authentication-failed"
         case .unsupportedSecurity:

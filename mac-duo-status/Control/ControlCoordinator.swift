@@ -81,13 +81,14 @@ final class ControlCoordinator: ObservableObject {
         }
     }
 
+    @discardableResult
     func connect(
         to target: WiFiNetworkCandidate,
         credential: WiFiCredential?,
         remember: Bool
-    ) async {
+    ) async -> ControlError? {
         guard !networkOperationState.isPending else {
-            return
+            return .temporarilyUnavailable
         }
 
         networkOperationState = .pending
@@ -108,10 +109,13 @@ final class ControlCoordinator: ObservableObject {
 
             lastNetworkResult = result
             networkOperationState = .succeeded
+            return nil
         } catch let error as ControlError {
             networkOperationState = .failed(error)
+            return error
         } catch {
             networkOperationState = .failed(.failed)
+            return .failed
         }
     }
 

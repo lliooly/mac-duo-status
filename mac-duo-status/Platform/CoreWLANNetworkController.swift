@@ -14,6 +14,12 @@ private func DuoStatusCommitWiFiConfiguration(
 ) -> Int32
 
 final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Sendable {
+    private struct StoredEnterpriseCredential {
+        let username: String?
+        let password: String?
+        let identity: SecIdentity?
+    }
+
     private let wifiClient = CWWiFiClient.shared()
     private let operationQueue = DispatchQueue(
         label: "com.shishishi3.duo-status.wifi-control"
@@ -27,7 +33,21 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         includeHidden: Bool,
         ssidData: Data? = nil
     ) async throws -> [WiFiNetworkCandidate] {
-        try await performOnQueue { [self] in
+        let shouldRequestLocation = try await performOnQueue { [self] in
+            guard let interface = wifiClient.interface() else {
+                throw ControlError.temporarilyUnavailable
+            }
+
+            return interface.powerOn()
+        }
+
+        if shouldRequestLocation {
+            guard await WiFiLocationAuthorization.shared.requestAccessIfNeeded() else {
+                throw ControlError.authorizationRequired
+            }
+        }
+
+        return try await performOnQueue { [self] in
             guard let interface = wifiClient.interface() else {
                 throw ControlError.temporarilyUnavailable
             }
@@ -48,7 +68,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                     throw ControlError.temporarilyUnavailable
                 }
 
-                // Wi-Fi 关闭时仍然返回系统已保存的网络，供 UI 展示为不可用状态。
+                // Wi-Fi 关闭时不执行扫描；配置文件仍会参与合并，但 UI 会过滤未发现的网络。
                 networks = []
             }
 
@@ -58,9 +78,28 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             let profiles = interface.configuration()?.networkProfiles.compactMap {
                 $0 as? CWNetworkProfile
             } ?? []
+
+            let selectedNetworks: [CWNetwork]
+            let selectedProfiles: [CWNetworkProfile]
+            if let requestedSSID = ssidData {
+                selectedNetworks = networkList.filter {
+                    resolvedSSIDData(for: $0) == requestedSSID
+                }
+                selectedProfiles = profiles.filter {
+                    resolvedSSIDData(for: $0) == requestedSSID
+                }
+            } else {
+                selectedNetworks = networkList
+                selectedProfiles = profiles
+            }
+
+            if ssidData != nil && selectedNetworks.isEmpty {
+                throw ControlError.networkNotFound
+            }
+
             let candidates = merge(
-                networks: networkList,
-                profiles: profiles,
+                networks: selectedNetworks,
+                profiles: selectedProfiles,
                 interfaceName: interfaceName,
                 scanToken: token
             )
@@ -72,8 +111,8 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             lastScanToken = token
             lastInterfaceName = interfaceName
             var cachedNetworks: [Data: [CWNetwork]] = [:]
-            for network in networkList {
-                guard let ssidData = network.ssidData else {
+            for network in selectedNetworks {
+                guard let ssidData = resolvedSSIDData(for: network) else {
                     continue
                 }
 
@@ -123,7 +162,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             let network = try resolveNetwork(for: target, interface: interface)
             try associate(
                 network: network,
-                security: target.primarySecurity,
+                target: target,
                 credential: credential
             )
 
@@ -132,7 +171,11 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             }
 
             do {
-                try rememberNetwork(target, interface: interface)
+                try rememberNetwork(
+                    target,
+                    interface: interface,
+                    credential: credential
+                )
                 return WiFiConnectionResult(wasRemembered: true)
             } catch {
                 // 连接已经成功，系统配置文件写入失败只影响“记住网络”结果。
@@ -179,15 +222,14 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
 
     private func associate(
         network: CWNetwork,
-        security: WiFiSecurity,
+        target: WiFiNetworkCandidate,
         credential: WiFiCredential?
     ) throws {
-        if security.isEnterprise || isEnterpriseCredential(credential) {
-            let enterpriseCredential = enterpriseCredential(from: credential)
-            let identity = enterpriseCredential.identityReference.flatMap(resolveIdentity)
-            guard enterpriseCredential.identityReference == nil || identity != nil else {
-                throw ControlError.authenticationFailed
-            }
+        if target.primarySecurity.isEnterprise || isEnterpriseCredential(credential) {
+            let enterpriseCredential = try enterpriseCredential(
+                for: target,
+                credential: credential
+            )
 
             guard let interface = interfaceForAssociation() else {
                 throw ControlError.temporarilyUnavailable
@@ -195,7 +237,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             do {
                 try interface.associate(
                     toEnterpriseNetwork: network,
-                    identity: identity,
+                    identity: enterpriseCredential.identity,
                     username: enterpriseCredential.username,
                     password: enterpriseCredential.password
                 )
@@ -205,15 +247,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             return
         }
 
-        let password: String?
-        switch credential ?? .none {
-        case .none:
-            password = nil
-        case let .passphrase(value):
-            password = value
-        case .enterprise:
-            throw ControlError.unsupportedSecurity
-        }
+        let password = try personalPassword(
+            for: target,
+            credential: credential
+        )
 
         guard let interface = interfaceForAssociation() else {
             throw ControlError.temporarilyUnavailable
@@ -235,8 +272,14 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
 
     private func rememberNetwork(
         _ target: WiFiNetworkCandidate,
-        interface: CWInterface
+        interface: CWInterface,
+        credential: WiFiCredential?
     ) throws {
+        try rememberCredential(
+            for: target,
+            credential: credential
+        )
+
         guard let security = nativeSecurity(for: target.primarySecurity)
         else {
             throw ControlError.unsupportedSecurity
@@ -270,6 +313,14 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         }
     }
 
+    private func resolvedSSIDData(for network: CWNetwork) -> Data? {
+        network.ssidData ?? network.ssid?.data(using: .utf8)
+    }
+
+    private func resolvedSSIDData(for profile: CWNetworkProfile) -> Data? {
+        profile.ssidData ?? profile.ssid?.data(using: .utf8)
+    }
+
     private func merge(
         networks: [CWNetwork],
         profiles: [CWNetworkProfile],
@@ -279,7 +330,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         var bySSID: [Data: WiFiNetworkCandidate] = [:]
 
         for profile in profiles {
-            guard let ssidData = profile.ssidData else {
+            guard let ssidData = resolvedSSIDData(for: profile) else {
                 continue
             }
 
@@ -288,19 +339,20 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                 id: candidateID(ssidData: ssidData, bssid: nil),
                 interfaceName: interfaceName,
                 ssidData: ssidData,
-                displayName: profile.ssid,
+                displayName: profile.ssid ?? String(data: ssidData, encoding: .utf8),
                 bssid: nil,
                 supportedSecurity: [security],
                 rssi: nil,
                 isHidden: profile.ssid == nil,
                 isKnown: true,
                 hotspotConfirmation: .unavailable,
-                scanToken: scanToken
+                scanToken: scanToken,
+                isDiscovered: false
             )
         }
 
         for network in networks {
-            guard let ssidData = network.ssidData else {
+            guard let ssidData = resolvedSSIDData(for: network) else {
                 continue
             }
 
@@ -312,14 +364,11 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
             let security = supportedSecurity.isEmpty ? [.unknown] : supportedSecurity
             let isKnown = bySSID[ssidData] != nil
             let rssi = network.rssiValue == 0 ? nil : network.rssiValue
-            let accessPoints = network.bssid.map {
-                [WiFiAccessPoint(bssid: $0, rssi: rssi)]
-            } ?? []
             let candidate = WiFiNetworkCandidate(
                 id: candidateID(ssidData: ssidData, bssid: network.bssid),
                 interfaceName: interfaceName,
                 ssidData: ssidData,
-                displayName: network.ssid,
+                displayName: network.ssid ?? String(data: ssidData, encoding: .utf8),
                 bssid: network.bssid,
                 supportedSecurity: security,
                 rssi: rssi,
@@ -327,7 +376,7 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                 isKnown: isKnown,
                 hotspotConfirmation: .unavailable,
                 scanToken: scanToken,
-                accessPoints: accessPoints
+                isDiscovered: true
             )
 
             if let existing = bySSID[ssidData] {
@@ -343,12 +392,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
                     ),
                     rssi: preferred.rssi,
                     isHidden: existing.isHidden && candidate.isHidden,
-                    isKnown: true,
+                    isKnown: existing.isKnown || candidate.isKnown,
                     hotspotConfirmation: .unavailable,
                     scanToken: scanToken,
-                    accessPoints: WiFiAccessPointMerger.merge(
-                        existing.selectableAccessPoints + candidate.selectableAccessPoints
-                    )
+                    isDiscovered: existing.isDiscovered || candidate.isDiscovered
                 )
             } else {
                 bySSID[ssidData] = candidate
@@ -388,22 +435,208 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         Self.securityMappings.first(where: { $0.value == security })?.core
     }
 
+    private func personalPassword(
+        for target: WiFiNetworkCandidate,
+        credential: WiFiCredential?
+    ) throws -> String? {
+        switch credential {
+        case .some(.none):
+            guard isOpenSecurity(target.primarySecurity) else {
+                throw ControlError.credentialsRequired
+            }
+            return nil
+        case let .some(.passphrase(value)):
+            guard !value.isEmpty else {
+                throw ControlError.credentialsRequired
+            }
+            return value
+        case .some(.enterprise):
+            throw ControlError.unsupportedSecurity
+        case nil:
+            if isOpenSecurity(target.primarySecurity) {
+                return nil
+            }
+
+            guard target.isKnown,
+                  let password = storedWiFiPassword(for: target.ssidData)
+            else {
+                throw ControlError.credentialsRequired
+            }
+            return password
+        }
+    }
+
+    private func enterpriseCredential(
+        for target: WiFiNetworkCandidate,
+        credential: WiFiCredential?
+    ) throws -> StoredEnterpriseCredential {
+        switch credential {
+        case let .some(.enterprise(username, password, identityReference)):
+            let identity = identityReference.flatMap(resolveIdentity)
+            guard identityReference == nil || identity != nil else {
+                throw ControlError.authenticationFailed
+            }
+            guard hasEnterpriseCredential(
+                username: username,
+                password: password,
+                identity: identity
+            ) else {
+                throw ControlError.credentialsRequired
+            }
+            return StoredEnterpriseCredential(
+                username: username,
+                password: password,
+                identity: identity
+            )
+        case nil:
+            guard target.isKnown,
+                  let stored = storedEnterpriseCredential(for: target.ssidData)
+            else {
+                throw ControlError.credentialsRequired
+            }
+            return stored
+        case .some(.none):
+            throw ControlError.credentialsRequired
+        case .some(.passphrase):
+            throw ControlError.unsupportedSecurity
+        }
+    }
+
+    private func rememberCredential(
+        for target: WiFiNetworkCandidate,
+        credential: WiFiCredential?
+    ) throws {
+        switch credential {
+        case let .some(.passphrase(value)):
+            guard !value.isEmpty else {
+                throw ControlError.credentialsRequired
+            }
+            let status = CWKeychainSetWiFiPassword(
+                .user,
+                target.ssidData,
+                value
+            )
+            guard status == errSecSuccess else {
+                throw ControlError.failed
+            }
+        case let .some(.enterprise(username, password, identityReference)):
+            if username != nil || password != nil {
+                let status = CWKeychainSetWiFiEAPUsernameAndPassword(
+                    .user,
+                    target.ssidData,
+                    username,
+                    password
+                )
+                guard status == errSecSuccess else {
+                    throw ControlError.failed
+                }
+            }
+
+            if let identityReference {
+                guard let identity = resolveIdentity(identityReference) else {
+                    throw ControlError.authenticationFailed
+                }
+                let status = CWKeychainSetWiFiEAPIdentity(
+                    .user,
+                    target.ssidData,
+                    identity
+                )
+                guard status == errSecSuccess else {
+                    throw ControlError.failed
+                }
+            }
+        case .some(.none), nil:
+            break
+        }
+    }
+
+    private func storedWiFiPassword(for ssidData: Data) -> String? {
+        for domain in Self.wifiKeychainDomains {
+            var password: NSString?
+            let status = CWKeychainFindWiFiPassword(
+                domain,
+                ssidData,
+                &password
+            )
+            guard status == errSecSuccess,
+                  let password,
+                  password.length > 0
+            else {
+                continue
+            }
+            return password as String
+        }
+
+        return nil
+    }
+
+    private func storedEnterpriseCredential(
+        for ssidData: Data
+    ) -> StoredEnterpriseCredential? {
+        for domain in Self.wifiKeychainDomains {
+            var username: NSString?
+            var password: NSString?
+            let credentialStatus = CWKeychainFindWiFiEAPUsernameAndPassword(
+                domain,
+                ssidData,
+                &username,
+                &password
+            )
+
+            var unmanagedIdentity: Unmanaged<SecIdentity>?
+            let identityStatus = CWKeychainCopyWiFiEAPIdentity(
+                domain,
+                ssidData,
+                &unmanagedIdentity
+            )
+            let identity = unmanagedIdentity?.takeRetainedValue()
+
+            guard credentialStatus == errSecSuccess || identityStatus == errSecSuccess
+            else {
+                continue
+            }
+
+            let storedCredential = StoredEnterpriseCredential(
+                username: username.map { $0 as String },
+                password: password.map { $0 as String },
+                identity: identity
+            )
+            guard hasEnterpriseCredential(
+                username: storedCredential.username,
+                password: storedCredential.password,
+                identity: storedCredential.identity
+            ) else {
+                continue
+            }
+            return storedCredential
+        }
+
+        return nil
+    }
+
+    private func hasEnterpriseCredential(
+        username: String?,
+        password: String?,
+        identity: SecIdentity?
+    ) -> Bool {
+        username?.isEmpty == false || password?.isEmpty == false || identity != nil
+    }
+
+    private func isOpenSecurity(_ security: WiFiSecurity) -> Bool {
+        switch security {
+        case .open, .owe, .oweTransition:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func isEnterpriseCredential(_ credential: WiFiCredential?) -> Bool {
         if case .enterprise = credential {
             return true
         }
 
         return false
-    }
-
-    private func enterpriseCredential(
-        from credential: WiFiCredential?
-    ) -> (username: String?, password: String?, identityReference: KeychainIdentityReference?) {
-        guard case let .enterprise(username, password, identityReference) = credential else {
-            return (nil, nil, nil)
-        }
-
-        return (username, password, identityReference)
     }
 
     private func resolveIdentity(
@@ -481,5 +714,10 @@ final class CoreWLANNetworkController: NetworkControlProviding, @unchecked Senda
         (.OWE, .owe),
         (.oweTransition, .oweTransition),
         (.unknown, .unknown)
+    ]
+
+    private static let wifiKeychainDomains: [CWKeychainDomain] = [
+        .user,
+        .system
     ]
 }
