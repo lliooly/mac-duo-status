@@ -132,7 +132,7 @@ struct StatusPopoverView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(
-            .regularMaterial,
+            .ultraThinMaterial,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .accessibilityIdentifier("open-settings")
