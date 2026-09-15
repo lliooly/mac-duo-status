@@ -9,6 +9,7 @@ import ServiceManagement
 final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
     private let service: SMAppService
     private let machServiceName = "com.shishishi3.duo-status.power-helper"
+    private let requestTimeoutNanoseconds: UInt64 = 5_000_000_000
 
     init(
         service: SMAppService = .daemon(
@@ -35,14 +36,22 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             let finish = Once {
                 connection.invalidate()
             }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(returning: self.unavailableCapabilities())
+                }
+            }
             let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: self.unavailableCapabilities())
                 }
             } as? DuoStatusPowerHelperProtocol
 
             guard let proxy else {
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: self.unavailableCapabilities())
                 }
                 return
@@ -50,6 +59,7 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
 
             proxy.getCapabilities { scopes, modes, minimum, maximum in
                 finish.run {
+                    timeout.cancel()
                     let parsedScopes = Set(
                         scopes.compactMap { value in
                             (value as? String).flatMap(PowerSourceScope.init(rawValue:))
@@ -97,13 +107,21 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             let finish = Once {
                 connection.invalidate()
             }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(throwing: ControlError.operationTimeout)
+                }
+            }
             let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
             } as? DuoStatusPowerHelperProtocol
             guard let proxy else {
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
                 return
@@ -111,6 +129,7 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
 
             proxy.setPowerMode(scope.rawValue as NSString, mode: mode.rawValue as NSString) { error in
                 finish.run {
+                    timeout.cancel()
                     if let error {
                         continuation.resume(throwing: self.map(error: error))
                     } else {
@@ -131,13 +150,21 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             let finish = Once {
                 connection.invalidate()
             }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(returning: nil)
+                }
+            }
             let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: nil)
                 }
             } as? DuoStatusPowerHelperProtocol
             guard let proxy else {
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: nil)
                 }
                 return
@@ -145,6 +172,7 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
 
             proxy.readPowerState { batteryMode, adapterMode, _, _ in
                 finish.run {
+                    timeout.cancel()
                     let rawValue = scope == .battery ? batteryMode : adapterMode
                     continuation.resume(
                         returning: rawValue.flatMap { PowerMode(rawValue: String($0)) }
@@ -172,13 +200,21 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             let finish = Once {
                 connection.invalidate()
             }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(throwing: ControlError.operationTimeout)
+                }
+            }
             let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
             } as? DuoStatusPowerHelperProtocol
             guard let proxy else {
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(throwing: ControlError.helperUnavailable)
                 }
                 return
@@ -186,6 +222,7 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
 
             proxy.setChargeLimit(percent as NSNumber) { error in
                 finish.run {
+                    timeout.cancel()
                     if let error {
                         continuation.resume(throwing: self.map(error: error))
                     } else {
@@ -206,13 +243,21 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
             let finish = Once {
                 connection.invalidate()
             }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(returning: nil)
+                }
+            }
             let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: nil)
                 }
             } as? DuoStatusPowerHelperProtocol
             guard let proxy else {
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: nil)
                 }
                 return
@@ -220,6 +265,7 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
 
             proxy.readChargeLimit { value in
                 finish.run {
+                    timeout.cancel()
                     continuation.resume(returning: value?.intValue)
                 }
             }
@@ -329,5 +375,32 @@ private final class XPCConnectionBox: @unchecked Sendable {
 
     func invalidate() {
         connection.invalidate()
+    }
+}
+
+private final class XPCRequestTimeout: @unchecked Sendable {
+    private let lock = NSLock()
+    private var workItem: DispatchWorkItem?
+
+    func start(
+        after nanoseconds: UInt64,
+        action: @escaping @Sendable () -> Void
+    ) {
+        let workItem = DispatchWorkItem(block: action)
+        lock.lock()
+        self.workItem = workItem
+        lock.unlock()
+
+        DispatchQueue.global(qos: .utility).asyncAfter(
+            deadline: .now() + .nanoseconds(Int(nanoseconds)),
+            execute: workItem
+        )
+    }
+
+    func cancel() {
+        lock.lock()
+        let workItem = self.workItem
+        lock.unlock()
+        workItem?.cancel()
     }
 }

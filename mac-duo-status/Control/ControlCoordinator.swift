@@ -17,15 +17,21 @@ final class ControlCoordinator: ObservableObject {
     private let statusStore: SystemStatusStore
     private let networkControl: any NetworkControlProviding
     private let powerControl: any PowerControlProviding
+    private let networkConfirmationAttempts: Int
+    private let networkConfirmationDelayNanoseconds: UInt64
 
     init(
         statusStore: SystemStatusStore,
         networkControl: any NetworkControlProviding,
-        powerControl: any PowerControlProviding
+        powerControl: any PowerControlProviding,
+        networkConfirmationAttempts: Int = 12,
+        networkConfirmationDelayNanoseconds: UInt64 = 250_000_000
     ) {
         self.statusStore = statusStore
         self.networkControl = networkControl
         self.powerControl = powerControl
+        self.networkConfirmationAttempts = max(networkConfirmationAttempts, 1)
+        self.networkConfirmationDelayNanoseconds = networkConfirmationDelayNanoseconds
     }
 
     var helperStatus: HelperStatus {
@@ -161,7 +167,9 @@ final class ControlCoordinator: ObservableObject {
 
         do {
             let capabilities = await powerControl.capabilities()
-            guard capabilities.chargeLimitValues.contains(percent) else {
+            guard capabilities.chargeLimitState == .available,
+                  capabilities.chargeLimitValues.contains(percent)
+            else {
                 throw capabilities.helperStatus == .requiresApproval
                     ? ControlError.authorizationRequired
                     : ControlError.helperUnavailable
@@ -225,14 +233,18 @@ final class ControlCoordinator: ObservableObject {
     private func waitForNetworkState(
         _ predicate: @escaping @Sendable (NetworkStatus) -> Bool
     ) async -> Bool {
-        for _ in 0..<12 {
+        for attempt in 0..<networkConfirmationAttempts {
             await statusStore.refreshNowAndWait()
             if predicate(statusStore.snapshot.network) {
                 return true
             }
 
+            guard attempt + 1 < networkConfirmationAttempts else {
+                return false
+            }
+
             do {
-                try await Task.sleep(nanoseconds: 250_000_000)
+                try await Task.sleep(nanoseconds: networkConfirmationDelayNanoseconds)
             } catch {
                 return false
             }

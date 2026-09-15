@@ -224,6 +224,163 @@ struct mac_duo_statusTests {
         #expect(ControlOperationState.failed(.networkNotFound).isPending == false)
     }
 
+    @Test
+    func coordinatorKeepsConnectionSuccessSeparateFromRememberFailure() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let ssidData = Data([7, 8, 9])
+        let networkStatus = NetworkStatus(
+            availability: .available,
+            kind: .wifi,
+            name: "Office",
+            rssi: -50,
+            signalLevel: 4,
+            hotspotConfirmed: false,
+            ssidData: ssidData,
+            bssid: "00:00:00:00:00:07",
+            isWiFiEnabled: true
+        )
+        let store = makeStatusStore(network: networkStatus, defaults: defaults)
+        let networkControl = RecordingNetworkControl(
+            result: WiFiConnectionResult(wasRemembered: false)
+        )
+        let controls = ControlCoordinator(
+            statusStore: store,
+            networkControl: networkControl,
+            powerControl: PlaceholderPowerControlProvider(),
+            networkConfirmationAttempts: 1,
+            networkConfirmationDelayNanoseconds: 0
+        )
+        let target = WiFiNetworkCandidate(
+            id: "office",
+            interfaceName: "en0",
+            ssidData: ssidData,
+            displayName: "Office",
+            bssid: "00:00:00:00:00:07",
+            supportedSecurity: [.wpa2Personal],
+            rssi: -50,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: UUID()
+        )
+
+        await controls.connect(
+            to: target,
+            credential: .passphrase("temporary-password"),
+            remember: true
+        )
+
+        #expect(controls.networkOperationState == .succeeded)
+        #expect(controls.lastNetworkRememberRequest)
+        #expect(controls.lastNetworkResult?.wasRemembered == false)
+        #expect(networkControl.connectCalls == 1)
+    }
+
+    @Test
+    func coordinatorDoesNotReportSuccessWhenNetworkReadbackTimesOut() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = makeStatusStore(
+            network: .unavailable(reason: "No network"),
+            defaults: defaults
+        )
+        let networkControl = RecordingNetworkControl(
+            result: WiFiConnectionResult(wasRemembered: true)
+        )
+        let controls = ControlCoordinator(
+            statusStore: store,
+            networkControl: networkControl,
+            powerControl: PlaceholderPowerControlProvider(),
+            networkConfirmationAttempts: 1,
+            networkConfirmationDelayNanoseconds: 0
+        )
+        let target = WiFiNetworkCandidate(
+            id: "missing",
+            interfaceName: "en0",
+            ssidData: Data([10, 11]),
+            displayName: "Missing",
+            bssid: nil,
+            supportedSecurity: [.open],
+            rssi: -60,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: UUID()
+        )
+
+        await controls.connect(to: target, credential: .none, remember: false)
+
+        #expect(controls.networkOperationState == .failed(.operationTimeout))
+        #expect(controls.lastNetworkResult == nil)
+    }
+
+    @Test
+    func coordinatorRejectsReadOnlyChargeLimitCapabilities() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let powerControl = RecordingPowerControl(
+            capabilities: PowerCapabilities(
+                energyModeScopes: [],
+                supportedPowerModes: [],
+                chargeLimitValues: Set(80...100),
+                requiresHelper: false,
+                helperStatus: .notInstalled
+            ),
+            chargeLimitReadback: 80
+        )
+        let controls = ControlCoordinator(
+            statusStore: makeStatusStore(
+                network: .unavailable(reason: "No network"),
+                defaults: defaults
+            ),
+            networkControl: PlaceholderNetworkControlProvider(),
+            powerControl: powerControl
+        )
+
+        await controls.setChargeLimit(90)
+
+        #expect(controls.powerOperationState == .failed(.helperUnavailable))
+        #expect(powerControl.setChargeLimitCalls == 0)
+    }
+
+    @Test
+    func coordinatorReportsUnconfirmedPowerReadback() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let powerControl = RecordingPowerControl(
+            capabilities: PowerCapabilities(
+                energyModeScopes: [.battery],
+                supportedPowerModes: [.automatic, .lowPower],
+                chargeLimitValues: [],
+                requiresHelper: true,
+                helperStatus: .authorized
+            ),
+            powerModeReadback: .automatic
+        )
+        let controls = ControlCoordinator(
+            statusStore: makeStatusStore(
+                network: .unavailable(reason: "No network"),
+                defaults: defaults
+            ),
+            networkControl: PlaceholderNetworkControlProvider(),
+            powerControl: powerControl
+        )
+
+        await controls.setPowerMode(.lowPower, scope: .battery)
+
+        #expect(controls.powerOperationState == .failed(.writeUnconfirmed))
+        #expect(powerControl.setPowerModeCalls == 1)
+    }
+
     @Test func onlyWiFiShowsSignalStrength() {
         let wifi = NetworkStatus(
             availability: .available,
@@ -477,6 +634,25 @@ private func testBattery(
     )
 }
 
+@MainActor
+private func makeStatusStore(
+    network: NetworkStatus,
+    defaults: UserDefaults
+) -> SystemStatusStore {
+    SystemStatusStore(
+        preferences: PreferencesStore(defaults: defaults),
+        providers: ProviderContainer(
+            battery: FixedBatteryProvider(
+                value: .unavailable(reason: "Battery unavailable")
+            ),
+            network: FixedNetworkProvider(value: network),
+            health: FixedHealthProvider(
+                value: .unavailable(selectedMetric: .cpu)
+            )
+        )
+    )
+}
+
 private struct SequenceCPUReader: CPUUsageReading {
     let values: [Double]
     private let state = LockedSequence()
@@ -549,6 +725,81 @@ private struct FixedHealthProvider: HealthProviding {
 
     func read() async -> HealthStatus {
         value
+    }
+}
+
+@MainActor
+private final class RecordingNetworkControl: NetworkControlProviding {
+    let result: WiFiConnectionResult
+    private(set) var connectCalls = 0
+
+    init(result: WiFiConnectionResult) {
+        self.result = result
+    }
+
+    func scan(
+        includeHidden: Bool,
+        ssidData: Data?
+    ) async throws -> [WiFiNetworkCandidate] {
+        []
+    }
+
+    func setWiFiEnabled(_ enabled: Bool) async throws {}
+
+    func connect(
+        to target: WiFiNetworkCandidate,
+        credential: WiFiCredential?,
+        remember: Bool
+    ) async throws -> WiFiConnectionResult {
+        connectCalls += 1
+        return result
+    }
+}
+
+@MainActor
+private final class RecordingPowerControl: PowerControlProviding {
+    let capabilitiesValue: PowerCapabilities
+    let powerModeReadback: PowerMode?
+    let chargeLimitReadback: Int?
+    private(set) var setPowerModeCalls = 0
+    private(set) var setChargeLimitCalls = 0
+
+    init(
+        capabilities: PowerCapabilities,
+        powerModeReadback: PowerMode? = nil,
+        chargeLimitReadback: Int? = nil
+    ) {
+        self.capabilitiesValue = capabilities
+        self.powerModeReadback = powerModeReadback
+        self.chargeLimitReadback = chargeLimitReadback
+    }
+
+    func capabilities() async -> PowerCapabilities {
+        capabilitiesValue
+    }
+
+    func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws {
+        setPowerModeCalls += 1
+    }
+
+    func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
+        powerModeReadback
+    }
+
+    func setChargeLimit(_ percent: Int) async throws {
+        setChargeLimitCalls += 1
+    }
+
+    func readChargeLimit() async -> Int? {
+        chargeLimitReadback
+    }
+
+    func requestHelperApproval() async -> HelperStatus {
+        .authorized
+    }
+
+    func unregisterHelper() async -> HelperStatus {
+        .notInstalled
     }
 }
 
