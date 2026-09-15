@@ -27,18 +27,7 @@ struct StatusPopoverView: View {
     }
 
     var body: some View {
-        destinationView
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
-        .frame(width: popoverWidth)
-        .background(popoverBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.72), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
+        popoverSurface
         .tint(DuoStatusStyle.accent)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
@@ -98,42 +87,30 @@ struct StatusPopoverView: View {
     }
 
     @ViewBuilder
-    private var popoverBackground: some View {
+    private var popoverSurface: some View {
         if #available(macOS 26.0, *) {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.clear)
-                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            destinationView
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+                .frame(width: popoverWidth)
+                .glassEffect(
+                    .clear,
+                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.46, green: 0.73, blue: 1.0, opacity: 0.34),
-                                Color.white.opacity(0.28),
-                                Color.white.opacity(0.62)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(red: 0.28, green: 0.60, blue: 1.0, opacity: 0.24),
-                                Color.clear
-                            ],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 280
-                        )
-                    )
-            }
+            destinationView
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+                .frame(width: popoverWidth)
+                .background(
+                    .ultraThinMaterial.opacity(0.56),
+                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
         }
     }
 
@@ -171,7 +148,7 @@ struct StatusPopoverView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(
-            .ultraThinMaterial.opacity(0.68),
+            .regularMaterial,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .accessibilityIdentifier("open-settings")
@@ -196,7 +173,7 @@ struct StatusPopoverView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(
-            .ultraThinMaterial.opacity(0.68),
+            .regularMaterial,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .accessibilityIdentifier("quit-app")
