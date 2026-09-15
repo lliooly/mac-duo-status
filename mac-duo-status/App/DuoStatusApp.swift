@@ -38,13 +38,7 @@ struct DuoStatusApp: App {
                 usesColor: preferencesStore.usesColor
             )
             .contextMenu {
-                Button(NSLocalizedString("settings.open", comment: "")) {
-                    NSApplication.shared.sendAction(
-                        Selector(("showSettingsWindow:")),
-                        to: nil,
-                        from: nil
-                    )
-                }
+                settingsMenuItem
 
                 Divider()
 
@@ -59,6 +53,20 @@ struct DuoStatusApp: App {
             SettingsView()
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
+        }
+    }
+
+    @ViewBuilder
+    private var settingsMenuItem: some View {
+        if #available(macOS 14.0, *) {
+            SettingsLink {
+                Text(NSLocalizedString("settings.open", comment: ""))
+            }
+            .buttonStyle(ActivateApplicationBeforeActionButtonStyle())
+        } else {
+            Button(NSLocalizedString("settings.open", comment: "")) {
+                SettingsWindowAccess.openLegacySettings()
+            }
         }
     }
 }

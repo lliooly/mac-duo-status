@@ -27,7 +27,7 @@ final class SystemStatusStore: ObservableObject {
     init(
         preferences: PreferencesStore,
         providers: ProviderContainer,
-        samplingIntervalNanoseconds: UInt64 = 2_000_000_000
+        samplingIntervalNanoseconds: UInt64 = 1_000_000_000
     ) {
         self.preferences = preferences
         self.providers = providers

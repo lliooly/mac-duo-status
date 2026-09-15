@@ -6,6 +6,54 @@
 import AppKit
 import SwiftUI
 
+enum BatteryIconColor: Equatable {
+    case white
+    case green
+    case yellow
+    case red
+
+    var nsColor: NSColor {
+        switch self {
+        case .white:
+            return .white
+        case .green:
+            return .systemGreen
+        case .yellow:
+            return .systemYellow
+        case .red:
+            return .systemRed
+        }
+    }
+}
+
+enum BatteryIconColorResolver {
+    static func resolve(
+        for battery: BatteryStatus,
+        usesColor: Bool
+    ) -> BatteryIconColor {
+        guard usesColor else {
+            return .white
+        }
+
+        if battery.isCharging == true {
+            return .green
+        }
+
+        if battery.isLowPowerModeEnabled == true {
+            return .yellow
+        }
+
+        if battery.isCharging == false,
+           battery.isLowPowerModeEnabled == false,
+           let chargeFraction = battery.chargeFraction,
+           chargeFraction < 0.2 {
+            return .red
+        }
+
+        return .white
+    }
+}
+
 struct CombinedStatusIcon: View {
     let snapshot: SystemStatusSnapshot
     let size: CGFloat
@@ -46,7 +94,7 @@ private enum StatusIconRenderer {
         image.lockFocus()
         defer {
             image.unlockFocus()
-            image.isTemplate = !usesColor
+            image.isTemplate = false
         }
 
         guard let context = NSGraphicsContext.current?.cgContext else {
@@ -68,15 +116,12 @@ private enum StatusIconRenderer {
         drawNetwork(
             in: context,
             kind: snapshot.network.kind,
-            size: canvasSize,
-            usesColor: usesColor
+            size: canvasSize
         )
         drawHealth(
             in: context,
             dotCount: snapshot.health.dotCount,
-            size: canvasSize,
-            usesColor: usesColor,
-            thermalState: snapshot.health.thermalState
+            size: canvasSize
         )
 
         return image
@@ -103,7 +148,7 @@ private enum StatusIconRenderer {
             startAngle: startAngle,
             endAngle: endAngle,
             clockwise: true,
-            color: nsColor(.white, alpha: usesColor ? 0.28 : 0.38),
+            color: nsColor(.white, alpha: 0.38),
             lineWidth: lineWidth
         )
 
@@ -131,20 +176,9 @@ private enum StatusIconRenderer {
     private static func drawNetwork(
         in context: CGContext,
         kind: NetworkKind,
-        size: CGFloat,
-        usesColor: Bool
+        size: CGFloat
     ) {
-        let color: NSColor
-        if usesColor {
-            switch kind {
-            case .disconnected, .unavailable:
-                color = .secondaryLabelColor
-            case .wifi, .ethernet, .hotspot:
-                color = .systemBlue
-            }
-        } else {
-            color = .white
-        }
+        let color = NSColor.white
 
         if kind == .wifi {
             drawWiFi(in: context, size: size, color: color)
@@ -253,23 +287,9 @@ private enum StatusIconRenderer {
     private static func drawHealth(
         in context: CGContext,
         dotCount: Int?,
-        size: CGFloat,
-        usesColor: Bool,
-        thermalState: ThermalState?
+        size: CGFloat
     ) {
-        let activeColor: NSColor
-        if usesColor {
-            switch thermalState {
-            case .serious:
-                activeColor = .systemOrange
-            case .critical:
-                activeColor = .systemRed
-            default:
-                activeColor = .white
-            }
-        } else {
-            activeColor = .white
-        }
+        let activeColor = NSColor.white
 
         let inactiveColor = nsColor(.white, alpha: dotCount == nil ? 0.45 : 0.28)
         let unit = size / 284
@@ -296,24 +316,10 @@ private enum StatusIconRenderer {
         for snapshot: SystemStatusSnapshot,
         usesColor: Bool
     ) -> NSColor {
-        guard usesColor else {
-            return .white
-        }
-
-        if snapshot.battery.isCharging == true {
-            return .systemGreen
-        }
-
-        if snapshot.battery.isLowPowerModeEnabled == true {
-            return .systemYellow
-        }
-
-        if let chargeFraction = snapshot.battery.chargeFraction,
-           chargeFraction < 0.2 {
-            return .systemRed
-        }
-
-        return .white
+        BatteryIconColorResolver.resolve(
+            for: snapshot.battery,
+            usesColor: usesColor
+        ).nsColor
     }
 
     private static func strokeArc(

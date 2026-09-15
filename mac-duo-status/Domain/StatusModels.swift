@@ -78,7 +78,7 @@ enum StatusSection: String, CaseIterable, Identifiable, Sendable {
         case .battery:
             return "battery.100"
         case .network:
-            return "network"
+            return "globe"
         case .systemHealth:
             return "waveform.path.ecg"
         }
@@ -89,6 +89,17 @@ enum PowerSource: String, Sendable {
     case battery
     case powerAdapter
     case unknown
+
+    var isPoweredByAdapter: Bool? {
+        switch self {
+        case .battery:
+            return false
+        case .powerAdapter:
+            return true
+        case .unknown:
+            return nil
+        }
+    }
 }
 
 struct BatteryStatus: Equatable, Sendable {

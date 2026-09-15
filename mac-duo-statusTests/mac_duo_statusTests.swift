@@ -51,6 +51,62 @@ struct mac_duo_statusTests {
         #expect(BatteryChargeCalculator.fraction(currentCapacity: 50, maximumCapacity: 0) == nil)
     }
 
+    @Test func coloredIconOnlyChangesBatteryColor() {
+        let normal = testBattery(
+            chargeFraction: 0.5,
+            isCharging: false,
+            isLowPowerModeEnabled: false
+        )
+        let charging = testBattery(
+            chargeFraction: 0.5,
+            isCharging: true,
+            isLowPowerModeEnabled: false
+        )
+        let lowPowerMode = testBattery(
+            chargeFraction: 0.5,
+            isCharging: false,
+            isLowPowerModeEnabled: true
+        )
+        let lowBattery = testBattery(
+            chargeFraction: 0.1,
+            isCharging: false,
+            isLowPowerModeEnabled: false
+        )
+        let chargingInLowPowerMode = testBattery(
+            chargeFraction: 0.1,
+            isCharging: true,
+            isLowPowerModeEnabled: true
+        )
+
+        #expect(
+            BatteryIconColorResolver.resolve(for: normal, usesColor: false) == .white
+        )
+        #expect(
+            BatteryIconColorResolver.resolve(for: normal, usesColor: true) == .white
+        )
+        #expect(
+            BatteryIconColorResolver.resolve(for: charging, usesColor: true) == .green
+        )
+        #expect(
+            BatteryIconColorResolver.resolve(for: lowPowerMode, usesColor: true) == .yellow
+        )
+        #expect(
+            BatteryIconColorResolver.resolve(for: lowBattery, usesColor: true) == .red
+        )
+        #expect(
+            BatteryIconColorResolver.resolve(
+                for: chargingInLowPowerMode,
+                usesColor: true
+            ) == .green
+        )
+    }
+
+    @Test func adapterPowerDefinesTheChargingStatus() {
+        #expect(PowerSource.powerAdapter.isPoweredByAdapter == true)
+        #expect(PowerSource.battery.isPoweredByAdapter == false)
+        #expect(PowerSource.unknown.isPoweredByAdapter == nil)
+    }
+
     @Test func wifiRSSIMapsToFourSignalLevels() {
         #expect(NetworkSignalMapper.level(forRSSI: -45) == 4)
         #expect(NetworkSignalMapper.level(forRSSI: -55) == 3)
@@ -295,6 +351,21 @@ struct mac_duo_statusTests {
         #expect(preferences.launchAtLogin == false)
         #expect(defaults.bool(forKey: "launchAtLogin") == false)
     }
+}
+
+private func testBattery(
+    chargeFraction: Double,
+    isCharging: Bool?,
+    isLowPowerModeEnabled: Bool?
+) -> BatteryStatus {
+    BatteryStatus(
+        availability: .available,
+        hasBuiltInBattery: true,
+        chargeFraction: chargeFraction,
+        isCharging: isCharging,
+        powerSource: isCharging == true ? .powerAdapter : .battery,
+        isLowPowerModeEnabled: isLowPowerModeEnabled
+    )
 }
 
 private struct SequenceCPUReader: CPUUsageReading {

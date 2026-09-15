@@ -123,7 +123,7 @@ final class BatteryProvider: BatteryProviding, @unchecked Sendable {
             availability: .available,
             hasBuiltInBattery: true,
             chargeFraction: chargeFraction,
-            isCharging: bool(description, forKey: kIOPSIsChargingKey),
+            isCharging: powerSource.isPoweredByAdapter,
             powerSource: powerSource,
             isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled
         )

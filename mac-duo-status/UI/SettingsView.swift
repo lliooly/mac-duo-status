@@ -26,15 +26,9 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker(
-                    NSLocalizedString("health.metric", comment: ""),
+                HealthMetricSelector(
                     selection: $preferences.healthMetric
-                ) {
-                    ForEach(HealthMetric.allCases) { metric in
-                        Text(metric.localizedTitle)
-                            .tag(metric)
-                    }
-                }
+                )
                 .onChange(of: preferences.healthMetric) { newMetric in
                     statusStore.setHealthMetric(newMetric)
                 }
