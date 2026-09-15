@@ -47,7 +47,7 @@ struct StatusPopoverView: View {
             }
             .frame(maxWidth: .infinity)
 
-            settingsAction
+            bottomActions
                 .padding(.top, 2)
         }
         .padding(.horizontal, 14)
@@ -73,7 +73,7 @@ struct StatusPopoverView: View {
         if #available(macOS 26.0, *) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(.clear)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -115,6 +115,16 @@ struct StatusPopoverView: View {
             .padding(.horizontal, 2)
     }
 
+    private var bottomActions: some View {
+        HStack(spacing: 8) {
+            settingsAction
+                .frame(maxWidth: .infinity)
+
+            quitAction
+                .frame(width: 92)
+        }
+    }
+
     @ViewBuilder
     private var settingsAction: some View {
         Group {
@@ -132,10 +142,35 @@ struct StatusPopoverView: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(
-            .ultraThinMaterial,
+            .ultraThinMaterial.opacity(0.68),
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .accessibilityIdentifier("open-settings")
+    }
+
+    private var quitAction: some View {
+        Button {
+            NSApplication.shared.terminate(nil)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "power")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(DuoStatusStyle.muted)
+
+                Text(NSLocalizedString("common.quit", comment: ""))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 40)
+        .background(
+            .ultraThinMaterial.opacity(0.68),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .accessibilityIdentifier("quit-app")
     }
 
     private var settingsActionLabel: some View {

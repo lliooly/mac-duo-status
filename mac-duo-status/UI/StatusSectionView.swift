@@ -52,7 +52,7 @@ struct StatusSectionView<Content: View>: View {
             }
         }
         .background(
-            .ultraThinMaterial,
+            .ultraThinMaterial.opacity(0.68),
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

@@ -22,7 +22,7 @@ struct HealthMetricSelector: View {
         }
         .padding(2)
         .background(
-            .ultraThinMaterial,
+            .ultraThinMaterial.opacity(0.58),
             in: RoundedRectangle(cornerRadius: 11, style: .continuous)
         )
         .frame(maxWidth: .infinity, minHeight: 30)
