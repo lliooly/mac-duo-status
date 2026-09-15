@@ -21,6 +21,26 @@
 "battery.low-power-mode" = "低电量模式";
 "battery.no-built-in" = "无内置电池";
 
+"power.active-mode" = "当前能源模式";
+"power.charge-limit" = "充电上限";
+"power.current-limit" = "当前上限";
+"power.open-control" = "电源控制";
+"power.title" = "电源控制";
+"power.advanced" = "高级电源控制";
+"power.modes" = "能源模式";
+"power.scope.battery" = "电池";
+"power.scope.adapter" = "电源适配器";
+"power.mode.automatic" = "自动";
+"power.mode.low-power" = "低电量模式";
+"power.mode.high-power" = "高电量模式";
+"power.enable" = "启用";
+"power.disable" = "停用";
+"power.helper.not-installed" = "未启用辅助进程";
+"power.helper.requires-approval" = "等待系统批准";
+"power.helper.authorized" = "已授权";
+"power.helper.unavailable" = "辅助进程不可用";
+"power.helper.failed" = "辅助进程失败";
+
 "network.type" = "类型";
 "network.name" = "网络名称";
 "network.signal" = "信号级别";
@@ -28,6 +48,33 @@
 "network.kind.ethernet" = "有线网络";
 "network.kind.hotspot" = "个人热点";
 "network.kind.disconnected" = "未连接";
+"network.switch" = "切换 Wi-Fi 网络";
+
+"wifi.title" = "Wi-Fi";
+"wifi.scan" = "扫描网络";
+"wifi.personal-hotspots" = "个人热点";
+"wifi.known-networks" = "已知网络";
+"wifi.other-networks" = "其他网络";
+"wifi.hidden-network" = "隐藏网络";
+"wifi.ssid-placeholder" = "输入网络名称";
+"wifi.settings" = "Wi-Fi 设置…";
+"wifi.no-networks" = "未发现网络";
+"wifi.hidden" = "隐藏网络";
+"wifi.not-found" = "未发现";
+"wifi.username" = "用户名";
+"wifi.password" = "密码";
+"wifi.identity" = "证书身份";
+"wifi.identity.none" = "不使用证书身份";
+"wifi.remember" = "记住此网络";
+"wifi.connect" = "连接";
+"wifi.connected-not-remembered" = "已连接，未能记住网络";
+"wifi.security.open" = "开放";
+"wifi.security.wep" = "WEP";
+"wifi.security.dynamic-wep" = "动态 WEP";
+"wifi.security.personal" = "个人";
+"wifi.security.enterprise" = "企业";
+"wifi.security.owe" = "增强开放";
+"wifi.security.unknown" = "未知安全类型";
 
 "health.load.one-minute" = "1 分钟负载";
 "health.thermal.nominal" = "正常";
@@ -38,6 +85,21 @@
 "common.yes" = "是";
 "common.no" = "否";
 "common.quit" = "退出";
+"common.back" = "返回";
+"common.cancel" = "取消";
+"common.apply" = "应用";
+
+"control.error.network-not-found" = "未找到网络";
+"control.error.authentication-failed" = "认证失败";
+"control.error.unsupported-security" = "暂不支持此安全类型";
+"control.error.authorization-required" = "需要授权";
+"control.error.helper-unavailable" = "高级控制不可用";
+"control.error.invalid-charge-limit" = "充电上限必须在 80% 至 100% 之间";
+"control.error.operation-timeout" = "操作完成，但状态未确认";
+"control.error.write-unconfirmed" = "写入完成，但状态未确认";
+"control.error.cancelled" = "操作已取消";
+"control.error.temporarily-unavailable" = "功能暂时不可用";
+"control.error.failed" = "操作失败";
 
 "settings.general" = "通用";
 "settings.open" = "打开设置";

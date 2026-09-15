@@ -23,6 +23,7 @@ final class SystemStatusStore: ObservableObject {
     private var batteryStatus: BatteryStatus
     private var networkStatus: NetworkStatus
     private var healthStatus: HealthStatus
+    private var powerPolicyStatus: PowerPolicyStatus
 
     init(
         preferences: PreferencesStore,
@@ -36,6 +37,7 @@ final class SystemStatusStore: ObservableObject {
         self.batteryStatus = .unavailable(reason: "Battery data is unavailable")
         self.networkStatus = .unavailable(reason: "Network data is unavailable")
         self.healthStatus = .unavailable(selectedMetric: preferences.healthMetric)
+        self.powerPolicyStatus = .unavailable(reason: "Power policy is unavailable")
         self.snapshot = .initial(selectedMetric: preferences.healthMetric)
     }
 
@@ -61,6 +63,7 @@ final class SystemStatusStore: ObservableObject {
         providers.battery.stopObserving()
         providers.network.stopObserving()
         providers.health.stopObserving()
+        providers.powerPolicy.stopObserving()
         removeWorkspaceObservers()
     }
 
@@ -68,6 +71,10 @@ final class SystemStatusStore: ObservableObject {
         Task { [weak self] in
             await self?.refresh()
         }
+    }
+
+    func refreshNowAndWait() async {
+        await refresh()
     }
 
     func setHealthMetric(_ metric: HealthMetric) {
@@ -111,6 +118,7 @@ final class SystemStatusStore: ObservableObject {
         providers.battery.startObserving(handler)
         providers.network.startObserving(handler)
         providers.health.startObserving(handler)
+        providers.powerPolicy.startObserving(handler)
     }
 
     private func observeWorkspaceLifecycle() {
@@ -177,14 +185,19 @@ final class SystemStatusStore: ObservableObject {
         let healthTask = Task.detached(priority: .utility) {
             await providers.health.read()
         }
+        let powerPolicyTask = Task.detached(priority: .utility) {
+            await providers.powerPolicy.read()
+        }
 
         let battery = await batteryTask.value
         let network = await networkTask.value
         let health = await healthTask.value
+        let powerPolicy = await powerPolicyTask.value
 
         batteryStatus = battery
         networkStatus = network
         healthStatus = health.selecting(preferences.healthMetric)
+        powerPolicyStatus = powerPolicy
         rebuildSnapshot()
     }
 
@@ -193,7 +206,8 @@ final class SystemStatusStore: ObservableObject {
             lastUpdated: Date(),
             battery: batteryStatus,
             network: networkStatus,
-            health: healthStatus.selecting(preferences.healthMetric)
+            health: healthStatus.selecting(preferences.healthMetric),
+            powerPolicy: powerPolicyStatus
         )
     }
 }

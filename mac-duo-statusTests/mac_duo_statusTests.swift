@@ -115,6 +115,74 @@ struct mac_duo_statusTests {
         #expect(NetworkSignalMapper.level(forRSSI: -90) == 0)
     }
 
+    @Test func wifiCandidatesMergeBySSIDDataAndKeepStrongestBSSID() {
+        let token = UUID()
+        let known = WiFiNetworkCandidate(
+            id: "known",
+            interfaceName: "en0",
+            ssidData: Data([1, 2, 3]),
+            displayName: "Office",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: token
+        )
+        let weak = WiFiNetworkCandidate(
+            id: "weak",
+            interfaceName: "en0",
+            ssidData: Data([1, 2, 3]),
+            displayName: "Office",
+            bssid: "00:00:00:00:00:01",
+            supportedSecurity: [.wpa2Personal],
+            rssi: -70,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token
+        )
+        let strong = WiFiNetworkCandidate(
+            id: "strong",
+            interfaceName: "en0",
+            ssidData: Data([1, 2, 3]),
+            displayName: "Office",
+            bssid: "00:00:00:00:00:02",
+            supportedSecurity: [.wpa3Personal],
+            rssi: -45,
+            isHidden: false,
+            isKnown: false,
+            hotspotConfirmation: .unavailable,
+            scanToken: token
+        )
+
+        let merged = WiFiNetworkCandidateMerger.merge(
+            knownNetworks: [known],
+            scannedNetworks: [weak, strong]
+        )
+
+        #expect(merged.count == 1)
+        #expect(merged.first?.isKnown == true)
+        #expect(merged.first?.bssid == strong.bssid)
+        #expect(merged.first?.supportedSecurity == [.wpa2Personal, .wpa3Personal])
+    }
+
+    @Test func chargeLimitValidatorKeepsTheSystemRange() {
+        #expect(ChargeLimitValidator.isInSystemRange(80))
+        #expect(ChargeLimitValidator.isInSystemRange(100))
+        #expect(!ChargeLimitValidator.isInSystemRange(79))
+        #expect(!ChargeLimitValidator.isInSystemRange(101))
+        #expect(ChargeLimitValidator.isAllowed(90, values: Set(80...100)))
+        #expect(!ChargeLimitValidator.isAllowed(90, values: [80, 85, 95, 100]))
+    }
+
+    @Test func controlStateOnlyMarksPendingOperationsAsBusy() {
+        #expect(ControlOperationState.idle.isPending == false)
+        #expect(ControlOperationState.pending.isPending)
+        #expect(ControlOperationState.failed(.networkNotFound).isPending == false)
+    }
+
     @Test func onlyWiFiShowsSignalStrength() {
         let wifi = NetworkStatus(
             availability: .available,

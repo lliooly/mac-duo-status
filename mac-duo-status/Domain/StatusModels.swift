@@ -10,7 +10,7 @@ enum DataAvailability: Equatable, Sendable {
     case unavailable(reason: String)
     case stale(reason: String)
 
-    var isAvailable: Bool {
+    nonisolated var isAvailable: Bool {
         if case .available = self {
             return true
         }
@@ -18,7 +18,7 @@ enum DataAvailability: Equatable, Sendable {
         return false
     }
 
-    var reason: String? {
+    nonisolated var reason: String? {
         switch self {
         case .available:
             return nil
@@ -163,6 +163,9 @@ struct NetworkStatus: Equatable, Sendable {
     var rssi: Int?
     var signalLevel: Int?
     var hotspotConfirmed: Bool
+    var ssidData: Data? = nil
+    var bssid: String? = nil
+    var isWiFiEnabled: Bool? = nil
 
     var shouldShowWiFiSignal: Bool {
         kind == .wifi && !hotspotConfirmed
@@ -175,7 +178,10 @@ struct NetworkStatus: Equatable, Sendable {
             name: nil,
             rssi: nil,
             signalLevel: nil,
-            hotspotConfirmed: false
+            hotspotConfirmed: false,
+            ssidData: nil,
+            bssid: nil,
+            isWiFiEnabled: nil
         )
     }
 }
@@ -251,6 +257,7 @@ struct SystemStatusSnapshot: Equatable, Sendable {
     var battery: BatteryStatus
     var network: NetworkStatus
     var health: HealthStatus
+    var powerPolicy: PowerPolicyStatus
 
     static func initial(selectedMetric: HealthMetric) -> SystemStatusSnapshot {
         SystemStatusSnapshot(
@@ -260,7 +267,8 @@ struct SystemStatusSnapshot: Equatable, Sendable {
             health: .unavailable(
                 selectedMetric: selectedMetric,
                 reason: "Health data is unavailable"
-            )
+            ),
+            powerPolicy: .unavailable(reason: "Power policy is unavailable")
         )
     }
 }

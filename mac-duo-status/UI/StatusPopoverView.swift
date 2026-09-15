@@ -8,8 +8,17 @@ import AppKit
 import SwiftUI
 
 struct StatusPopoverView: View {
+    private enum PopoverDestination {
+        case root
+        case wifi
+        case power
+    }
+
     @EnvironmentObject private var preferences: PreferencesStore
     @EnvironmentObject private var statusStore: SystemStatusStore
+    @EnvironmentObject private var controls: ControlCoordinator
+
+    @State private var destination: PopoverDestination = .root
 
     private let popoverWidth: CGFloat = 320
 
@@ -18,6 +27,42 @@ struct StatusPopoverView: View {
     }
 
     var body: some View {
+        destinationView
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .frame(width: popoverWidth)
+        .background(popoverBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.white.opacity(0.72), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
+        .tint(DuoStatusStyle.accent)
+        .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            statusStore.refreshNow()
+        }
+    }
+
+    @ViewBuilder
+    private var destinationView: some View {
+        switch destination {
+        case .root:
+            rootContent
+        case .wifi:
+            WiFiControlView {
+                destination = .root
+            }
+        case .power:
+            PowerControlView {
+                destination = .root
+            }
+        }
+    }
+
+    private var rootContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             summary
 
@@ -49,22 +94,6 @@ struct StatusPopoverView: View {
 
             bottomActions
                 .padding(.top, 2)
-        }
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
-        .frame(width: popoverWidth)
-        .background(popoverBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.72), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
-        .tint(DuoStatusStyle.accent)
-        .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            statusStore.refreshNow()
         }
     }
 
@@ -263,6 +292,40 @@ struct StatusPopoverView: View {
                 )
             }
         }
+
+        if let activeMode = snapshot.powerPolicy.activeMode {
+            StatusValueRow(
+                title: NSLocalizedString("power.active-mode", comment: ""),
+                value: NSLocalizedString(activeMode.localizationKey, comment: ""),
+                showsDivider: true
+            )
+        }
+
+        if let chargeLimit = snapshot.powerPolicy.chargeLimit {
+            StatusValueRow(
+                title: NSLocalizedString("power.charge-limit", comment: ""),
+                value: "\(chargeLimit)%",
+                showsDivider: true
+            )
+        }
+
+        Button {
+            destination = .power
+        } label: {
+            HStack {
+                Text(NSLocalizedString("power.open-control", comment: ""))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DuoStatusStyle.muted)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.primary)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("open-power-control")
     }
 
     @ViewBuilder
@@ -293,6 +356,24 @@ struct StatusPopoverView: View {
                 )
             }
         }
+
+        Button {
+            destination = .wifi
+        } label: {
+            HStack {
+                Text(NSLocalizedString("network.switch", comment: ""))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DuoStatusStyle.muted)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.primary)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("open-wifi-control")
     }
 
     @ViewBuilder

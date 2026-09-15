@@ -49,7 +49,8 @@ final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unche
                 name: nil,
                 rssi: nil,
                 signalLevel: nil,
-                hotspotConfirmed: false
+                hotspotConfirmed: false,
+                isWiFiEnabled: wifiClient.interface()?.powerOn()
             )
         }
 
@@ -64,7 +65,8 @@ final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unche
                 name: nil,
                 rssi: nil,
                 signalLevel: nil,
-                hotspotConfirmed: false
+                hotspotConfirmed: false,
+                isWiFiEnabled: wifiClient.interface()?.powerOn()
             )
         }
 
@@ -145,6 +147,8 @@ final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unche
     private func readWiFiStatus() -> NetworkStatus {
         let interface = wifiClient.interface()
         let name = interface?.ssid()?.trimmedEmptyToNil
+        let ssidData = interface?.ssidData()
+        let bssid = interface?.bssid()
         let rssi = interface.map { $0.rssiValue() }.flatMap { $0 == 0 ? nil : $0 }
 
         return NetworkStatus(
@@ -153,7 +157,10 @@ final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unche
             name: name,
             rssi: rssi,
             signalLevel: rssi.map(NetworkSignalMapper.level(forRSSI:)),
-            hotspotConfirmed: false
+            hotspotConfirmed: false,
+            ssidData: ssidData,
+            bssid: bssid,
+            isWiFiEnabled: interface?.powerOn()
         )
     }
 

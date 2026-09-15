@@ -21,6 +21,26 @@
 "battery.low-power-mode" = "Low Power Mode";
 "battery.no-built-in" = "No built-in battery";
 
+"power.active-mode" = "Active Power Mode";
+"power.charge-limit" = "Charge Limit";
+"power.current-limit" = "Current Limit";
+"power.open-control" = "Power Controls";
+"power.title" = "Power Controls";
+"power.advanced" = "Advanced Power Controls";
+"power.modes" = "Power Modes";
+"power.scope.battery" = "Battery";
+"power.scope.adapter" = "Power Adapter";
+"power.mode.automatic" = "Automatic";
+"power.mode.low-power" = "Low Power";
+"power.mode.high-power" = "High Power";
+"power.enable" = "Enable";
+"power.disable" = "Disable";
+"power.helper.not-installed" = "Helper not enabled";
+"power.helper.requires-approval" = "Waiting for approval";
+"power.helper.authorized" = "Authorized";
+"power.helper.unavailable" = "Helper unavailable";
+"power.helper.failed" = "Helper failed";
+
 "network.type" = "Type";
 "network.name" = "Network";
 "network.signal" = "Signal";
@@ -28,6 +48,33 @@
 "network.kind.ethernet" = "Ethernet";
 "network.kind.hotspot" = "Personal Hotspot";
 "network.kind.disconnected" = "Not Connected";
+"network.switch" = "Switch Wi-Fi Network";
+
+"wifi.title" = "Wi-Fi";
+"wifi.scan" = "Scan Networks";
+"wifi.personal-hotspots" = "Personal Hotspots";
+"wifi.known-networks" = "Known Networks";
+"wifi.other-networks" = "Other Networks";
+"wifi.hidden-network" = "Hidden Network";
+"wifi.ssid-placeholder" = "Network name";
+"wifi.settings" = "Wi-Fi Settings…";
+"wifi.no-networks" = "No networks found";
+"wifi.hidden" = "Hidden Network";
+"wifi.not-found" = "Not Found";
+"wifi.username" = "Username";
+"wifi.password" = "Password";
+"wifi.identity" = "Certificate Identity";
+"wifi.identity.none" = "No certificate identity";
+"wifi.remember" = "Remember This Network";
+"wifi.connect" = "Connect";
+"wifi.connected-not-remembered" = "Connected, but the network was not remembered";
+"wifi.security.open" = "Open";
+"wifi.security.wep" = "WEP";
+"wifi.security.dynamic-wep" = "Dynamic WEP";
+"wifi.security.personal" = "Personal";
+"wifi.security.enterprise" = "Enterprise";
+"wifi.security.owe" = "Enhanced Open";
+"wifi.security.unknown" = "Unknown Security";
 
 "health.load.one-minute" = "1-minute Load";
 "health.thermal.nominal" = "Nominal";
@@ -38,6 +85,21 @@
 "common.yes" = "Yes";
 "common.no" = "No";
 "common.quit" = "Quit";
+"common.back" = "Back";
+"common.cancel" = "Cancel";
+"common.apply" = "Apply";
+
+"control.error.network-not-found" = "Network not found";
+"control.error.authentication-failed" = "Authentication failed";
+"control.error.unsupported-security" = "This security type is not supported";
+"control.error.authorization-required" = "Authorization required";
+"control.error.helper-unavailable" = "Advanced controls are unavailable";
+"control.error.invalid-charge-limit" = "Charge Limit must be between 80% and 100%";
+"control.error.operation-timeout" = "The operation completed, but the state was not confirmed";
+"control.error.write-unconfirmed" = "The write completed, but the state was not confirmed";
+"control.error.cancelled" = "Operation cancelled";
+"control.error.temporarily-unavailable" = "Temporarily unavailable";
+"control.error.failed" = "Operation failed";
 
 "settings.general" = "General";
 "settings.open" = "Open Settings";

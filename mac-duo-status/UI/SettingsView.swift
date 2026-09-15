@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject private var preferences: PreferencesStore
     @EnvironmentObject private var statusStore: SystemStatusStore
+    @EnvironmentObject private var controls: ControlCoordinator
 
     var body: some View {
         Form {
@@ -45,6 +46,12 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(NSLocalizedString("settings.default-sections", comment: ""))
+            }
+
+            Section {
+                PowerAuthorizationView(compact: true)
+            } header: {
+                Text(NSLocalizedString("power.advanced", comment: ""))
             }
         }
         .formStyle(.grouped)

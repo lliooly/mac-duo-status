@@ -10,18 +10,26 @@ import AppKit
 struct DuoStatusApp: App {
     @StateObject private var preferencesStore: PreferencesStore
     @StateObject private var statusStore: SystemStatusStore
+    @StateObject private var controlCoordinator: ControlCoordinator
 
     init() {
         let preferences = PreferencesStore(
             launchAtLoginManager: SystemLaunchAtLoginManager()
         )
+        let providers = ProviderContainer.live
         let status = SystemStatusStore(
             preferences: preferences,
-            providers: ProviderContainer.live
+            providers: providers
+        )
+        let controls = ControlCoordinator(
+            statusStore: status,
+            networkControl: providers.networkControl,
+            powerControl: providers.powerControl
         )
 
         _preferencesStore = StateObject(wrappedValue: preferences)
         _statusStore = StateObject(wrappedValue: status)
+        _controlCoordinator = StateObject(wrappedValue: controls)
 
         status.start()
     }
@@ -31,6 +39,7 @@ struct DuoStatusApp: App {
             StatusPopoverView()
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
+                .environmentObject(controlCoordinator)
         } label: {
             CombinedStatusIcon(
                 snapshot: statusStore.snapshot,
@@ -53,6 +62,7 @@ struct DuoStatusApp: App {
             SettingsView()
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
+                .environmentObject(controlCoordinator)
         }
     }
 

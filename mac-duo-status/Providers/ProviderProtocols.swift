@@ -42,20 +42,48 @@ struct ProviderContainer: Sendable {
     let battery: any BatteryProviding
     let network: any NetworkProviding
     let health: any HealthProviding
+    let powerPolicy: any PowerPolicyProviding
+    let networkControl: any NetworkControlProviding
+    let powerControl: any PowerControlProviding
+
+    init(
+        battery: any BatteryProviding,
+        network: any NetworkProviding,
+        health: any HealthProviding,
+        powerPolicy: any PowerPolicyProviding = PlaceholderPowerPolicyProvider(),
+        networkControl: any NetworkControlProviding = PlaceholderNetworkControlProvider(),
+        powerControl: any PowerControlProviding = PlaceholderPowerControlProvider()
+    ) {
+        self.battery = battery
+        self.network = network
+        self.health = health
+        self.powerPolicy = powerPolicy
+        self.networkControl = networkControl
+        self.powerControl = powerControl
+    }
 
     static var placeholders: ProviderContainer {
         ProviderContainer(
             battery: PlaceholderBatteryProvider(),
             network: PlaceholderNetworkProvider(),
-            health: PlaceholderHealthProvider()
+            health: PlaceholderHealthProvider(),
+            powerPolicy: PlaceholderPowerPolicyProvider(),
+            networkControl: PlaceholderNetworkControlProvider(),
+            powerControl: PlaceholderPowerControlProvider()
         )
     }
 
     static var live: ProviderContainer {
-        ProviderContainer(
+        let networkControl = CoreWLANNetworkController()
+        let powerControl = PowerPolicyProvider()
+
+        return ProviderContainer(
             battery: BatteryProvider(),
             network: NetworkProvider(),
-            health: HealthProvider()
+            health: HealthProvider(),
+            powerPolicy: powerControl,
+            networkControl: networkControl,
+            powerControl: powerControl
         )
     }
 }
