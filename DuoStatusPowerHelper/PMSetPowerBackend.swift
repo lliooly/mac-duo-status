@@ -88,18 +88,17 @@ final class PMSetPowerBackend: PowerBackend, @unchecked Sendable {
     func readPowerState() -> (
         batteryMode: String?,
         adapterMode: String?,
-        activeMode: String?,
-        chargeLimit: NSNumber?
+        activeMode: String?
     ) {
         guard let modeKey else {
-            return (nil, nil, nil, nil)
+            return (nil, nil, nil)
         }
 
         let customOutput: PMSetCommandResult
         do {
             customOutput = try runner.run(arguments: ["-g", "custom"])
         } catch {
-            return (nil, nil, nil, nil)
+            return (nil, nil, nil)
         }
 
         guard customOutput.isSuccessful,
@@ -109,7 +108,7 @@ final class PMSetPowerBackend: PowerBackend, @unchecked Sendable {
               scopedModes.battery.key == modeKey,
               scopedModes.adapter.key == modeKey
         else {
-            return (nil, nil, nil, nil)
+            return (nil, nil, nil)
         }
 
         let activeMode: String?
@@ -131,8 +130,7 @@ final class PMSetPowerBackend: PowerBackend, @unchecked Sendable {
         return (
             PMSetPowerModeParser.modeName(for: scopedModes.battery),
             PMSetPowerModeParser.modeName(for: scopedModes.adapter),
-            activeMode,
-            nil
+            activeMode
         )
     }
 
@@ -174,18 +172,12 @@ final class PMSetPowerBackend: PowerBackend, @unchecked Sendable {
         }
     }
 
-    func setChargeLimit(_ percent: Int) throws {
-        throw PowerBackendError.unsupported
-    }
-
     private static func detectCapabilities(
         using runner: any PMSetCommandRunning
     ) -> (modeKey: String?, capabilities: PowerBackendCapabilities) {
         let unavailable = PowerBackendCapabilities(
             energyModeScopes: [],
-            supportedPowerModes: [],
-            chargeLimitMinimum: nil,
-            chargeLimitMaximum: nil
+            supportedPowerModes: []
         )
 
         guard let capabilitiesOutput = try? runner.run(arguments: ["-g", "cap"]),
@@ -221,9 +213,7 @@ final class PMSetPowerBackend: PowerBackend, @unchecked Sendable {
             modeKey,
             PowerBackendCapabilities(
                 energyModeScopes: ["battery", "powerAdapter"],
-                supportedPowerModes: supportedModes,
-                chargeLimitMinimum: nil,
-                chargeLimitMaximum: nil
+                supportedPowerModes: supportedModes
             )
         )
     }

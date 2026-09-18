@@ -11,8 +11,6 @@ struct PowerControlView: View {
 
     let onBack: () -> Void
 
-    @State private var selectedChargeLimit = 80.0
-
     private var status: PowerPolicyStatus {
         statusStore.snapshot.powerPolicy
     }
@@ -73,8 +71,6 @@ struct PowerControlView: View {
             currentPowerSourceRow
             energyModeControls
 
-            chargeLimitControls
-
             if !status.helperStatus.isAuthorized ||
                 availableModes.isEmpty ||
                 modeReadbackUnavailable {
@@ -85,13 +81,7 @@ struct PowerControlView: View {
                 .padding(.top, 2)
         }
         .onAppear {
-            selectedChargeLimit = Double(status.chargeLimit ?? 80)
             statusStore.refreshNow()
-        }
-        .onChange(of: status.chargeLimit) { newValue in
-            if let newValue {
-                selectedChargeLimit = Double(newValue)
-            }
         }
         .onChange(of: statusStore.snapshot.battery.powerSource) { _ in
             statusStore.refreshNow()
@@ -190,45 +180,6 @@ struct PowerControlView: View {
         .buttonStyle(.plain)
         .disabled(!canEditModes)
         .accessibilityIdentifier("power-mode-\(mode.rawValue)")
-    }
-
-    @ViewBuilder
-    private var chargeLimitControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("power.charge-limit", comment: ""))
-                .font(.system(size: 12, weight: .semibold))
-
-            if status.chargeLimitCapability == .available,
-               !status.capabilities.chargeLimitValues.isEmpty {
-                HStack(spacing: 10) {
-                    Slider(value: $selectedChargeLimit, in: 80...100, step: 1)
-
-                    Text("\(Int(selectedChargeLimit.rounded()))%")
-                        .font(.system(size: 11, weight: .medium))
-                        .frame(width: 40, alignment: .trailing)
-                }
-
-                HStack {
-                    Spacer(minLength: 0)
-                    Button(NSLocalizedString("common.apply", comment: "")) {
-                        Task {
-                            await controls.setChargeLimit(
-                                Int(selectedChargeLimit.rounded())
-                            )
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(controls.powerOperationState.isPending)
-                }
-            } else {
-                StatusValueRow(
-                    title: NSLocalizedString("power.current-limit", comment: ""),
-                    value: status.chargeLimit.map { "\($0)%" }
-                        ?? NSLocalizedString("status.unavailable", comment: "")
-                )
-            }
-        }
     }
 
     private var batterySettingsFallback: some View {

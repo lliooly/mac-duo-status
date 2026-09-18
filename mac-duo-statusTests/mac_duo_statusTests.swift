@@ -329,15 +329,6 @@ struct mac_duo_statusTests {
         #expect(candidate.primarySecurity == .wpa3Personal)
     }
 
-    @Test func chargeLimitValidatorKeepsTheSystemRange() {
-        #expect(ChargeLimitValidator.isInSystemRange(80))
-        #expect(ChargeLimitValidator.isInSystemRange(100))
-        #expect(!ChargeLimitValidator.isInSystemRange(79))
-        #expect(!ChargeLimitValidator.isInSystemRange(101))
-        #expect(ChargeLimitValidator.isAllowed(90, values: Set(80...100)))
-        #expect(!ChargeLimitValidator.isAllowed(90, values: [80, 85, 95, 100]))
-    }
-
     @Test func pmsetModeParserMapsAllPowermodeValues() {
         #expect(
             PMSetPowerModeParser.modeName(
@@ -456,28 +447,6 @@ struct mac_duo_statusTests {
         let status = await provider.read()
 
         #expect(status.activeMode == .highPower)
-    }
-
-    @Test func powerCapabilitiesSeparateAuthorizationFromSupport() {
-        let authorized = PowerCapabilities(
-            energyModeScopes: [],
-            supportedPowerModes: [],
-            chargeLimitValues: Set(80...100),
-            requiresHelper: true,
-            helperStatus: .authorized
-        )
-        let waitingForApproval = PowerCapabilities(
-            energyModeScopes: [],
-            supportedPowerModes: [],
-            chargeLimitValues: [],
-            requiresHelper: true,
-            helperStatus: .requiresApproval
-        )
-        let unsupported = PowerCapabilities.unsupported
-
-        #expect(authorized.chargeLimitState == .available)
-        #expect(waitingForApproval.chargeLimitState == .authorizationRequired)
-        #expect(unsupported.chargeLimitState == .unsupported)
     }
 
     @Test func controlStateOnlyMarksPendingOperationsAsBusy() {
@@ -703,38 +672,6 @@ struct mac_duo_statusTests {
     }
 
     @Test
-    func coordinatorRejectsReadOnlyChargeLimitCapabilities() async {
-        let suiteName = "DuoStatusTests-(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let powerControl = RecordingPowerControl(
-            capabilities: PowerCapabilities(
-                energyModeScopes: [],
-                supportedPowerModes: [],
-                chargeLimitValues: Set(80...100),
-                requiresHelper: false,
-                helperStatus: .notInstalled
-            ),
-            chargeLimitReadback: 80
-        )
-        let controls = ControlCoordinator(
-            statusStore: makeStatusStore(
-                network: .unavailable(reason: "No network"),
-                defaults: defaults
-            ),
-            networkControl: PlaceholderNetworkControlProvider(),
-            powerControl: powerControl,
-            wifiAuthorization: RecordingWiFiAuthorization()
-        )
-
-        await controls.setChargeLimit(90)
-
-        #expect(controls.powerOperationState == .failed(.helperUnavailable))
-        #expect(powerControl.setChargeLimitCalls == 0)
-    }
-
-    @Test
     func coordinatorReportsUnconfirmedPowerReadback() async {
         let suiteName = "DuoStatusTests-(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -744,7 +681,6 @@ struct mac_duo_statusTests {
             capabilities: PowerCapabilities(
                 energyModeScopes: [.battery],
                 supportedPowerModes: [.automatic, .lowPower],
-                chargeLimitValues: [],
                 requiresHelper: true,
                 helperStatus: .authorized
             ),
@@ -1242,20 +1178,16 @@ private final class RecordingPowerControl: PowerControlProviding {
     let capabilitiesValue: PowerCapabilities
     let powerModeReadback: PowerMode?
     let activePowerModeReadback: PowerMode?
-    let chargeLimitReadback: Int?
     private(set) var setPowerModeCalls = 0
-    private(set) var setChargeLimitCalls = 0
 
     init(
         capabilities: PowerCapabilities,
         powerModeReadback: PowerMode? = nil,
-        activePowerModeReadback: PowerMode? = nil,
-        chargeLimitReadback: Int? = nil
+        activePowerModeReadback: PowerMode? = nil
     ) {
         self.capabilitiesValue = capabilities
         self.powerModeReadback = powerModeReadback
         self.activePowerModeReadback = activePowerModeReadback
-        self.chargeLimitReadback = chargeLimitReadback
     }
 
     func capabilities() async -> PowerCapabilities {
@@ -1272,14 +1204,6 @@ private final class RecordingPowerControl: PowerControlProviding {
 
     func readActivePowerMode() async -> PowerMode? {
         activePowerModeReadback
-    }
-
-    func setChargeLimit(_ percent: Int) async throws {
-        setChargeLimitCalls += 1
-    }
-
-    func readChargeLimit() async -> Int? {
-        chargeLimitReadback
     }
 
     func requestHelperApproval() async -> HelperStatus {
@@ -1300,7 +1224,6 @@ private final class BlockingPowerControl: PowerControlProviding {
         PowerCapabilities(
             energyModeScopes: [.battery],
             supportedPowerModes: [.automatic, .lowPower],
-            chargeLimitValues: [],
             requiresHelper: true,
             helperStatus: .authorized
         )
@@ -1315,14 +1238,6 @@ private final class BlockingPowerControl: PowerControlProviding {
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
         .lowPower
-    }
-
-    func setChargeLimit(_ percent: Int) async throws {
-        throw ControlError.helperUnavailable
-    }
-
-    func readChargeLimit() async -> Int? {
-        nil
     }
 
     func requestHelperApproval() async -> HelperStatus {

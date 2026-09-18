@@ -73,7 +73,7 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                     return
                 }
 
-                proxy.getCapabilities { scopes, modes, minimum, maximum in
+                proxy.getCapabilities { scopes, modes in
                     finish.run {
                         timeout.cancel()
                         let parsedScopes = Set(
@@ -86,18 +86,10 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                                 (value as? String).flatMap(PowerMode.init(rawValue:))
                             }
                         )
-                        let chargeLimitValues: Set<Int>
-                        if let minimum = minimum?.intValue, let maximum = maximum?.intValue {
-                            chargeLimitValues = Set(minimum...maximum)
-                        } else {
-                            chargeLimitValues = []
-                        }
-
                         continuation.resume(
                             returning: PowerCapabilities(
                                 energyModeScopes: parsedScopes,
                                 supportedPowerModes: parsedModes,
-                                chargeLimitValues: chargeLimitValues,
                                 requiresHelper: true,
                                 helperStatus: .authorized
                             )
@@ -207,7 +199,7 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                 return
             }
 
-            proxy.readPowerState { batteryMode, adapterMode, activeMode, _ in
+            proxy.readPowerState { batteryMode, adapterMode, activeMode in
                 finish.run {
                     timeout.cancel()
                     continuation.resume(
@@ -217,96 +209,6 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                             activeMode: activeMode.map { String($0) }
                         )
                     )
-                }
-            }
-        }
-    }
-
-    func setChargeLimit(_ percent: Int) async throws {
-        guard (80...100).contains(percent) else {
-            throw ControlError.invalidChargeLimit
-        }
-
-        let capabilities = await capabilities()
-        guard capabilities.helperStatus.isAuthorized else {
-            throw error(for: capabilities.helperStatus)
-        }
-        guard capabilities.chargeLimitValues.contains(percent) else {
-            throw ControlError.invalidChargeLimit
-        }
-
-        let connection = XPCConnectionBox(makeConnection())
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let finish = Once {
-                connection.invalidate()
-            }
-            let timeout = XPCRequestTimeout()
-            timeout.start(after: requestTimeoutNanoseconds) {
-                finish.run {
-                    continuation.resume(throwing: ControlError.operationTimeout)
-                }
-            }
-            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(throwing: ControlError.helperUnavailable)
-                }
-            } as? DuoStatusPowerHelperProtocol
-            guard let proxy else {
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(throwing: ControlError.helperUnavailable)
-                }
-                return
-            }
-
-            proxy.setChargeLimit(percent as NSNumber) { error in
-                finish.run {
-                    timeout.cancel()
-                    if let error {
-                        continuation.resume(throwing: self.map(error: error))
-                    } else {
-                        continuation.resume(returning: ())
-                    }
-                }
-            }
-        }
-    }
-
-    func readChargeLimit() async -> Int? {
-        guard currentStatus() == .authorized else {
-            return nil
-        }
-
-        let connection = XPCConnectionBox(makeConnection())
-        return await withCheckedContinuation { continuation in
-            let finish = Once {
-                connection.invalidate()
-            }
-            let timeout = XPCRequestTimeout()
-            timeout.start(after: requestTimeoutNanoseconds) {
-                finish.run {
-                    continuation.resume(returning: nil)
-                }
-            }
-            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(returning: nil)
-                }
-            } as? DuoStatusPowerHelperProtocol
-            guard let proxy else {
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(returning: nil)
-                }
-                return
-            }
-
-            proxy.readChargeLimit { value in
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(returning: value?.intValue)
                 }
             }
         }
@@ -420,7 +322,6 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
         PowerCapabilities(
             energyModeScopes: [],
             supportedPowerModes: [],
-            chargeLimitValues: [],
             requiresHelper: true,
             helperStatus: status
         )

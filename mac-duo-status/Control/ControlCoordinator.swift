@@ -166,45 +166,6 @@ final class ControlCoordinator: ObservableObject {
         }
     }
 
-    func setChargeLimit(_ percent: Int) async {
-        guard !powerOperationState.isPending else {
-            return
-        }
-
-        guard (80...100).contains(percent) else {
-            powerOperationState = .failed(.invalidChargeLimit)
-            return
-        }
-
-        powerOperationState = .pending
-
-        do {
-            let capabilities = await powerControl.capabilities()
-            guard capabilities.chargeLimitState == .available,
-                  capabilities.chargeLimitValues.contains(percent)
-            else {
-                throw capabilities.helperStatus == .requiresApproval
-                    ? ControlError.authorizationRequired
-                    : ControlError.helperUnavailable
-            }
-
-            try await powerControl.setChargeLimit(percent)
-            guard await powerControl.readChargeLimit() == percent else {
-                throw ControlError.writeUnconfirmed
-            }
-
-            await statusStore.refreshNowAndWait()
-            guard statusStore.snapshot.powerPolicy.chargeLimit == percent else {
-                throw ControlError.writeUnconfirmed
-            }
-            powerOperationState = .succeeded
-        } catch let error as ControlError {
-            powerOperationState = .failed(error)
-        } catch {
-            powerOperationState = .failed(.failed)
-        }
-    }
-
     func requestHelperApproval() async {
         guard !powerOperationState.isPending else {
             return

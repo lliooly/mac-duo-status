@@ -9,19 +9,14 @@ import Foundation
 protocol DuoStatusPowerHelperProtocol {
     func getHelperInfo(withReply reply: @escaping (NSNumber) -> Void)
     func getCapabilities(
-        withReply reply: @escaping (NSArray, NSArray, NSNumber?, NSNumber?) -> Void
+        withReply reply: @escaping (NSArray, NSArray) -> Void
     )
     func readPowerState(
-        withReply reply: @escaping (NSString?, NSString?, NSString?, NSNumber?) -> Void
+        withReply reply: @escaping (NSString?, NSString?, NSString?) -> Void
     )
     func setPowerMode(
         _ scope: NSString,
         mode: NSString,
-        withReply reply: @escaping (NSError?) -> Void
-    )
-    func readChargeLimit(withReply reply: @escaping (NSNumber?) -> Void)
-    func setChargeLimit(
-        _ percent: NSNumber,
         withReply reply: @escaping (NSError?) -> Void
     )
     func connectToSavedWiFi(

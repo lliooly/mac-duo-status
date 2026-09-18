@@ -63,14 +63,6 @@ struct PlaceholderPowerControlProvider: PowerControlProviding {
         nil
     }
 
-    func setChargeLimit(_ percent: Int) async throws {
-        throw ControlError.helperUnavailable
-    }
-
-    func readChargeLimit() async -> Int? {
-        nil
-    }
-
     func requestHelperApproval() async -> HelperStatus {
         .notInstalled
     }

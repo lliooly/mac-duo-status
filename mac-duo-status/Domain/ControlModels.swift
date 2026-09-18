@@ -20,7 +20,6 @@ enum ControlError: Error, Equatable, Sendable {
     case unsupportedSecurity
     case authorizationRequired
     case helperUnavailable
-    case invalidChargeLimit
     case operationTimeout
     case writeUnconfirmed
     case cancelled
@@ -41,8 +40,6 @@ enum ControlError: Error, Equatable, Sendable {
             return "control.error.authorization-required"
         case .helperUnavailable:
             return "control.error.helper-unavailable"
-        case .invalidChargeLimit:
-            return "control.error.invalid-charge-limit"
         case .operationTimeout:
             return "control.error.operation-timeout"
         case .writeUnconfirmed:

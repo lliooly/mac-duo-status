@@ -22,8 +22,6 @@
 "battery.no-built-in" = "无内置电池";
 
 "power.active-mode" = "当前能源模式";
-"power.charge-limit" = "充电上限";
-"power.current-limit" = "当前上限";
 "power.current-mode" = "当前模式";
 "power.open-control" = "电源控制";
 "power.open-system-settings" = "在系统设置中打开能源模式";
@@ -107,7 +105,6 @@
 "control.error.unsupported-security" = "暂不支持此安全类型";
 "control.error.authorization-required" = "需要授权";
 "control.error.helper-unavailable" = "高级控制不可用";
-"control.error.invalid-charge-limit" = "充电上限必须在 80% 至 100% 之间";
 "control.error.operation-timeout" = "操作完成，但状态未确认";
 "control.error.write-unconfirmed" = "写入完成，但状态未确认";
 "control.error.cancelled" = "操作已取消";

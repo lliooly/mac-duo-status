@@ -29,7 +29,6 @@
 - 平滑处理。
 - 无效值和暂不可用值。
 - Wi-Fi 网络按 SSID 合并、按信号选择 BSSID，并按安全族选择连接策略。
-- 充电上限 80–100 的范围校验和能力状态映射。
 - `pmset` 能源模式的 0/1/2 映射、`powermode`/`lowpowermode` 解析和 Battery/AC 区块解析。
 - 能源模式输出缺失、重复、未知值或非整数时降级；只有 Low Power 能力时不暴露 High Power。
 - helper 无法读回且公开 Low Power 为 false 时，不把状态映射为 Automatic。

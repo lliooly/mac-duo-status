@@ -1,5 +1,8 @@
 # Duo Status V1.1 + V2 合并控制能力设计
 
+> 历史说明：本文档中的充电上限设计已由
+> `2026-09-18-remove-charge-limit-design.md` 取消；其余内容仍作为实现依据。
+
 ## 文档信息
 
 - 产品：Duo Status

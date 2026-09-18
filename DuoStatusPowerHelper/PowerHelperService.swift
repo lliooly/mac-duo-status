@@ -8,8 +8,6 @@ import Foundation
 struct PowerBackendCapabilities {
     let energyModeScopes: [String]
     let supportedPowerModes: [String]
-    let chargeLimitMinimum: NSNumber?
-    let chargeLimitMaximum: NSNumber?
 }
 
 protocol PowerBackend {
@@ -17,35 +15,26 @@ protocol PowerBackend {
     func readPowerState() -> (
         batteryMode: String?,
         adapterMode: String?,
-        activeMode: String?,
-        chargeLimit: NSNumber?
+        activeMode: String?
     )
     func setPowerMode(scope: String, mode: String) throws
-    func setChargeLimit(_ percent: Int) throws
 }
 
 struct UnavailablePowerBackend: PowerBackend {
     let capabilities = PowerBackendCapabilities(
         energyModeScopes: [],
-        supportedPowerModes: [],
-        chargeLimitMinimum: nil,
-        chargeLimitMaximum: nil
+        supportedPowerModes: []
     )
 
     func readPowerState() -> (
         batteryMode: String?,
         adapterMode: String?,
-        activeMode: String?,
-        chargeLimit: NSNumber?
+        activeMode: String?
     ) {
-        (nil, nil, nil, nil)
+        (nil, nil, nil)
     }
 
     func setPowerMode(scope: String, mode: String) throws {
-        throw PowerBackendError.unsupported
-    }
-
-    func setChargeLimit(_ percent: Int) throws {
         throw PowerBackendError.unsupported
     }
 }
@@ -75,26 +64,23 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
     }
 
     func getCapabilities(
-        withReply reply: @escaping (NSArray, NSArray, NSNumber?, NSNumber?) -> Void
+        withReply reply: @escaping (NSArray, NSArray) -> Void
     ) {
         let capabilities = backend.capabilities
         reply(
             capabilities.energyModeScopes as NSArray,
-            capabilities.supportedPowerModes as NSArray,
-            capabilities.chargeLimitMinimum,
-            capabilities.chargeLimitMaximum
+            capabilities.supportedPowerModes as NSArray
         )
     }
 
     func readPowerState(
-        withReply reply: @escaping (NSString?, NSString?, NSString?, NSNumber?) -> Void
+        withReply reply: @escaping (NSString?, NSString?, NSString?) -> Void
     ) {
         let state = backend.readPowerState()
         reply(
             state.batteryMode as NSString?,
             state.adapterMode as NSString?,
-            state.activeMode as NSString?,
-            state.chargeLimit
+            state.activeMode as NSString?
         )
     }
 
@@ -105,27 +91,6 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
     ) {
         do {
             try backend.setPowerMode(scope: String(scope), mode: String(mode))
-            reply(nil)
-        } catch {
-            reply(Self.error(for: error))
-        }
-    }
-
-    func readChargeLimit(withReply reply: @escaping (NSNumber?) -> Void) {
-        reply(backend.readPowerState().chargeLimit)
-    }
-
-    func setChargeLimit(
-        _ percent: NSNumber,
-        withReply reply: @escaping (NSError?) -> Void
-    ) {
-        guard (80...100).contains(percent.intValue) else {
-            reply(Self.error(for: PowerBackendError.invalidParameter))
-            return
-        }
-
-        do {
-            try backend.setChargeLimit(percent.intValue)
             reply(nil)
         } catch {
             reply(Self.error(for: error))

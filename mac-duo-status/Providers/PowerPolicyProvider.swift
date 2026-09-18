@@ -31,7 +31,6 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
         let activeMode = await helper.readActivePowerMode() ?? (
             isLowPowerModeEnabled ? .lowPower : nil
         )
-        let chargeLimit = await helper.readChargeLimit()
         let powerModes = await helper.readPowerModes()
 
         return PowerPolicyStatus(
@@ -39,8 +38,6 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
             activeMode: activeMode,
             batteryMode: powerModes.batteryMode,
             adapterMode: powerModes.adapterMode,
-            chargeLimit: chargeLimit,
-            chargeLimitCapability: capabilities.chargeLimitState,
             helperStatus: capabilities.helperStatus,
             capabilities: capabilities
         )
@@ -98,18 +95,6 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
 
     func readActivePowerMode() async -> PowerMode? {
         await helper.readActivePowerMode()
-    }
-
-    func setChargeLimit(_ percent: Int) async throws {
-        guard (80...100).contains(percent) else {
-            throw ControlError.invalidChargeLimit
-        }
-
-        try await helper.setChargeLimit(percent)
-    }
-
-    func readChargeLimit() async -> Int? {
-        await helper.readChargeLimit()
     }
 
     func requestHelperApproval() async -> HelperStatus {

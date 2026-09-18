@@ -24,16 +24,6 @@ enum PowerMode: String, CaseIterable, Hashable, Identifiable, Sendable {
     }
 }
 
-enum ChargeLimitValidator {
-    nonisolated static func isInSystemRange(_ percent: Int) -> Bool {
-        (80...100).contains(percent)
-    }
-
-    nonisolated static func isAllowed(_ percent: Int, values: Set<Int>) -> Bool {
-        isInSystemRange(percent) && values.contains(percent)
-    }
-}
-
 enum PowerSourceScope: String, CaseIterable, Hashable, Identifiable, Sendable {
     case battery
     case powerAdapter
@@ -69,30 +59,12 @@ enum HelperStatus: Equatable, Sendable {
 struct PowerCapabilities: Equatable, Sendable {
     let energyModeScopes: Set<PowerSourceScope>
     let supportedPowerModes: Set<PowerMode>
-    let chargeLimitValues: Set<Int>
     let requiresHelper: Bool
     let helperStatus: HelperStatus
-
-    var chargeLimitState: CapabilityState {
-        if !chargeLimitValues.isEmpty && helperStatus.isAuthorized {
-            return .available
-        }
-
-        if requiresHelper && helperStatus == .requiresApproval {
-            return .authorizationRequired
-        }
-
-        if !chargeLimitValues.isEmpty {
-            return .readOnly
-        }
-
-        return .unsupported
-    }
 
     static let unsupported = PowerCapabilities(
         energyModeScopes: [],
         supportedPowerModes: [],
-        chargeLimitValues: [],
         requiresHelper: true,
         helperStatus: .notInstalled
     )
@@ -103,8 +75,6 @@ struct PowerPolicyStatus: Equatable, Sendable {
     let activeMode: PowerMode?
     let batteryMode: PowerMode?
     let adapterMode: PowerMode?
-    let chargeLimit: Int?
-    let chargeLimitCapability: CapabilityState
     let helperStatus: HelperStatus
     let capabilities: PowerCapabilities
 
@@ -114,8 +84,6 @@ struct PowerPolicyStatus: Equatable, Sendable {
             activeMode: nil,
             batteryMode: nil,
             adapterMode: nil,
-            chargeLimit: nil,
-            chargeLimitCapability: .unsupported,
             helperStatus: .unavailable(reason: reason),
             capabilities: .unsupported
         )
@@ -139,8 +107,6 @@ protocol PowerControlProviding: Sendable {
     func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?)
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode?
     func readActivePowerMode() async -> PowerMode?
-    func setChargeLimit(_ percent: Int) async throws
-    func readChargeLimit() async -> Int?
     func requestHelperApproval() async -> HelperStatus
     func unregisterHelper() async -> HelperStatus
 }

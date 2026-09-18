@@ -279,14 +279,6 @@ struct StatusPopoverView: View {
             showsDivider: true
         )
 
-        if let chargeLimit = snapshot.powerPolicy.chargeLimit {
-            StatusValueRow(
-                title: NSLocalizedString("power.charge-limit", comment: ""),
-                value: "\(chargeLimit)%",
-                showsDivider: true
-            )
-        }
-
         Button {
             destination = .power
         } label: {

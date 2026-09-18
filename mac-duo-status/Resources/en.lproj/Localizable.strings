@@ -22,8 +22,6 @@
 "battery.no-built-in" = "No built-in battery";
 
 "power.active-mode" = "Active Power Mode";
-"power.charge-limit" = "Charge Limit";
-"power.current-limit" = "Current Limit";
 "power.current-mode" = "Current Mode";
 "power.open-control" = "Power Controls";
 "power.open-system-settings" = "Open Energy Mode in System Settings";
@@ -107,7 +105,6 @@
 "control.error.unsupported-security" = "This security type is not supported";
 "control.error.authorization-required" = "Authorization required";
 "control.error.helper-unavailable" = "Advanced controls are unavailable";
-"control.error.invalid-charge-limit" = "Charge Limit must be between 80% and 100%";
 "control.error.operation-timeout" = "The operation completed, but the state was not confirmed";
 "control.error.write-unconfirmed" = "The write completed, but the state was not confirmed";
 "control.error.cancelled" = "Operation cancelled";
