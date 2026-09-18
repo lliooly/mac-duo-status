@@ -15,7 +15,7 @@ Duo Status 已经能够读取 macOS Wi-Fi 钥匙串中的个人网络密码，�
 - 已知网络首次连接前，使用 macOS `LocalAuthentication` 系统界面验证当前用户。
 - 认证优先使用 Touch ID；系统会在必要时提供 Apple Watch 或 Mac 登录密码 fallback。
 - 认证成功后持久化应用级 Wi-Fi 授权标记，应用重启后继续有效。
-- 后续已知网络连接不再重复弹出认证界面，继续从 macOS Wi-Fi 钥匙串读取实际网络凭据。
+- 后续已知网络连接不再重复弹出认证界面，由已授权的特权 helper 复用 macOS 的保存配置。
 - 提供“撤销 Wi-Fi 授权”操作；撤销后下一次已知网络连接重新验证。
 - 应用永远不接收、保存或记录 Mac 登录密码、指纹数据或 Touch ID 原始信息。
 - 保留当前个人网络、WEP 和企业网络的系统凭据读取及手动回退流程。
@@ -46,10 +46,10 @@ Duo Status 已经能够读取 macOS Wi-Fi 钥匙串中的个人网络密码，�
 ```text
 点击已知网络
   ├─ 已存在应用授权标记
-  │    └─ 读取 macOS Wi-Fi 凭据 → CoreWLAN 连接
+  │    └─ 特权 helper 使用 macOS 保存配置连接
   └─ 没有应用授权标记
        └─ LocalAuthentication 系统认证
-            ├─ 成功 → 写入授权标记 → 读取 Wi-Fi 凭据 → CoreWLAN 连接
+            ├─ 成功 → 写入授权标记 → 特权 helper 使用系统保存配置连接
             └─ 取消/失败 → 不连接并展示可恢复错误
 ```
 
@@ -61,9 +61,9 @@ Duo Status 已经能够读取 macOS Wi-Fi 钥匙串中的个人网络密码，�
 
 - 授权标记存在时直接返回成功，不显示 UI；
 - 授权标记不存在时调用 `LAContext.evaluatePolicy`；
-- 认证成功后写入标记，再继续当前的 `CoreWLANNetworkController.connect`；
-- CoreWLAN 层仍然只通过 `CWKeychainFindWiFiPassword`、EAP 凭据和身份读取接口获取网络凭据；
-- 已知网络缺少系统 Wi-Fi 凭据时，仍回退到现有手动凭据页；Touch ID 不会伪造或替代网络密码。
+- 认证成功后写入标记，再由 `CoreWLANNetworkController` 通过 XPC 调用已授权的特权 helper；
+- helper 优先调用 `networksetup` 让 macOS 使用保存的网络配置；必要时在 helper 内读取系统 Wi-Fi/EAP 钥匙串并完成 CoreWLAN 连接；
+- helper 只返回连接结果，不把 Wi-Fi 密码或企业凭据返回主 App；保存配置不可用时，主 App 回退到现有手动凭据页。
 
 未知网络仍然需要用户提供真实 Wi-Fi 密码。用户选择记住网络后，凭据写入 macOS Wi-Fi 钥匙串，后续该网络会按照已知网络路径处理。
 
@@ -93,6 +93,7 @@ Duo Status 已经能够读取 macOS Wi-Fi 钥匙串中的个人网络密码，�
 | 已授权但 Wi-Fi 密码不存在 | 进入现有网络密码页 |
 | 已授权但 Wi-Fi 密码过期 | 显示认证失败，允许输入新的网络密码 |
 | 未知网络 | 仍要求实际 Wi-Fi 密码；Touch ID 不能替代它 |
+| 特权 helper 未安装或未批准 | 提示启用一次高级 helper，不展示伪造的 Wi-Fi 密码输入 |
 | 撤销授权 | 只删除应用标记，不删除系统网络配置 |
 
 ## 5. 测试计划
@@ -111,6 +112,7 @@ Duo Status 已经能够读取 macOS Wi-Fi 钥匙串中的个人网络密码，�
 - 在有 Touch ID 的 Mac 上验证首次授权显示系统认证界面。
 - 验证选择密码 fallback 可以完成授权，应用不接收密码内容。
 - 验证重启应用后已知网络可直接切换，不重复授权。
+- 验证特权 helper 批准后，已知网络连接不弹出 System keychain 管理员对话框。
 - 验证撤销后再次连接会重新请求授权。
 - 验证未知网络仍显示真实网络密码输入页，已知网络缺少凭据时正确回退。
 - 运行现有 Wi-Fi 扫描、连接、钥匙串回退和菜单栏 UI 测试。
