@@ -46,4 +46,36 @@ enum SettingsWindowAccess {
             return
         }
     }
+
+    static func openBatterySettings() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        let urls = [
+            "x-apple.systempreferences:com.apple.Battery-Settings",
+            "x-apple.systempreferences:com.apple.preference.battery",
+            "x-apple.systempreferences:com.apple.preference.battery?Battery"
+        ]
+
+        for value in urls {
+            guard let url = URL(string: value), NSWorkspace.shared.open(url) else {
+                continue
+            }
+
+            return
+        }
+
+        if let settingsURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.apple.systempreferences"
+        ) {
+            _ = NSWorkspace.shared.openApplication(
+                at: settingsURL,
+                configuration: NSWorkspace.OpenConfiguration()
+            )
+            return
+        }
+
+        _ = NSWorkspace.shared.open(
+            URL(fileURLWithPath: "/System/Applications/System Settings.app")
+        )
+    }
 }

@@ -25,9 +25,11 @@
 "power.charge-limit" = "Charge Limit";
 "power.current-limit" = "Current Limit";
 "power.open-control" = "Power Controls";
+"power.open-system-settings" = "Open Energy Mode in System Settings";
 "power.title" = "Power Controls";
 "power.advanced" = "Advanced Power Controls";
 "power.modes" = "Power Modes";
+"power.scope.title" = "Power Source";
 "power.scope.battery" = "Battery";
 "power.scope.adapter" = "Power Adapter";
 "power.mode.automatic" = "Automatic";

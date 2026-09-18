@@ -25,14 +25,16 @@
 "power.charge-limit" = "充电上限";
 "power.current-limit" = "当前上限";
 "power.open-control" = "电源控制";
+"power.open-system-settings" = "在系统设置中打开能源模式";
 "power.title" = "电源控制";
 "power.advanced" = "高级电源控制";
 "power.modes" = "能源模式";
+"power.scope.title" = "供电来源";
 "power.scope.battery" = "电池";
 "power.scope.adapter" = "电源适配器";
 "power.mode.automatic" = "自动";
 "power.mode.low-power" = "低电量模式";
-"power.mode.high-power" = "高电量模式";
+"power.mode.high-power" = "高性能模式";
 "power.enable" = "启用";
 "power.disable" = "停用";
 "power.helper.not-installed" = "未启用辅助进程";

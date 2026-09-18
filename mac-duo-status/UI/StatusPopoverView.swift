@@ -260,7 +260,8 @@ struct StatusPopoverView: View {
                 showsDivider: true
             )
 
-            if let isLowPowerModeEnabled = snapshot.battery.isLowPowerModeEnabled {
+            if snapshot.powerPolicy.activeMode == nil,
+               let isLowPowerModeEnabled = snapshot.battery.isLowPowerModeEnabled {
                 StatusValueRow(
                     title: NSLocalizedString("battery.low-power-mode", comment: ""),
                     value: isLowPowerModeEnabled
@@ -270,13 +271,13 @@ struct StatusPopoverView: View {
             }
         }
 
-        if let activeMode = snapshot.powerPolicy.activeMode {
-            StatusValueRow(
-                title: NSLocalizedString("power.active-mode", comment: ""),
-                value: NSLocalizedString(activeMode.localizationKey, comment: ""),
-                showsDivider: true
-            )
-        }
+        StatusValueRow(
+            title: NSLocalizedString("power.active-mode", comment: ""),
+            value: snapshot.powerPolicy.activeMode.map {
+                NSLocalizedString($0.localizationKey, comment: "")
+            } ?? NSLocalizedString("status.unavailable", comment: ""),
+            showsDivider: true
+        )
 
         if let chargeLimit = snapshot.powerPolicy.chargeLimit {
             StatusValueRow(

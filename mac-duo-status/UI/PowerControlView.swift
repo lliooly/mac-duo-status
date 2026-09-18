@@ -12,38 +12,78 @@ struct PowerControlView: View {
     let onBack: () -> Void
 
     @State private var selectedChargeLimit = 80.0
+    @State private var selectedScope: PowerSourceScope = .battery
 
     private var status: PowerPolicyStatus {
         statusStore.snapshot.powerPolicy
     }
 
+    private var availableScopes: [PowerSourceScope] {
+        [.battery, .powerAdapter].filter {
+            status.capabilities.energyModeScopes.contains($0)
+        }
+    }
+
     private var availableModes: [PowerMode] {
-        status.capabilities.supportedPowerModes.sorted { $0.rawValue < $1.rawValue }
+        [.automatic, .lowPower, .highPower].filter {
+            status.capabilities.supportedPowerModes.contains($0)
+        }
+    }
+
+    private var selectedMode: PowerMode? {
+        mode(for: selectedScope)
+    }
+
+    private var preferredScope: PowerSourceScope {
+        statusStore.snapshot.battery.powerSource == .powerAdapter
+            ? .powerAdapter
+            : .battery
+    }
+
+    private var modeReadbackUnavailable: Bool {
+        guard !availableScopes.isEmpty else {
+            return true
+        }
+
+        return availableScopes.contains { mode(for: $0) == nil }
+    }
+
+    private var canEditModes: Bool {
+        status.helperStatus.isAuthorized &&
+            !availableScopes.isEmpty &&
+            !availableModes.isEmpty &&
+            selectedMode != nil &&
+            !controls.powerOperationState.isPending
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            if let activeMode = status.activeMode {
-                StatusValueRow(
-                    title: NSLocalizedString("power.active-mode", comment: ""),
-                    value: NSLocalizedString(activeMode.localizationKey, comment: "")
-                )
-            }
-
-            Divider()
-                .overlay(DuoStatusStyle.divider)
+            StatusValueRow(
+                title: NSLocalizedString("power.active-mode", comment: ""),
+                value: localizedMode(status.activeMode),
+                showsDivider: true
+            )
 
             energyModeControls
 
             chargeLimitControls
+
+            if !status.helperStatus.isAuthorized ||
+                availableModes.isEmpty ||
+                modeReadbackUnavailable {
+                batterySettingsFallback
+            }
 
             PowerAuthorizationView()
                 .padding(.top, 2)
         }
         .onAppear {
             selectedChargeLimit = Double(status.chargeLimit ?? 80)
+            selectedScope = availableScopes.contains(preferredScope)
+                ? preferredScope
+                : (availableScopes.first ?? preferredScope)
         }
         .onChange(of: status.chargeLimit) { newValue in
             if let newValue {
@@ -76,26 +116,107 @@ struct PowerControlView: View {
             Text(NSLocalizedString("power.modes", comment: ""))
                 .font(.system(size: 12, weight: .semibold))
 
-            if availableModes.isEmpty {
-                StatusValueRow(
-                    title: NSLocalizedString("power.scope.battery", comment: ""),
-                    value: localizedMode(status.batteryMode)
-                )
-                StatusValueRow(
-                    title: NSLocalizedString("power.scope.adapter", comment: ""),
-                    value: localizedMode(status.adapterMode)
-                )
+            if availableModes.isEmpty || availableScopes.isEmpty {
+                readOnlyModeRows
             } else {
-                modePicker(
-                    scope: .battery,
-                    currentMode: status.batteryMode
-                )
-                modePicker(
-                    scope: .powerAdapter,
-                    currentMode: status.adapterMode
-                )
+                scopeSelector
+
+                if selectedMode == nil {
+                    StatusValueRow(
+                        title: NSLocalizedString(
+                            selectedScope.localizationKey,
+                            comment: ""
+                        ),
+                        value: NSLocalizedString("status.unavailable", comment: "")
+                    )
+                } else {
+                    VStack(spacing: 2) {
+                        ForEach(availableModes) { mode in
+                            modeRow(mode, isSelected: selectedMode == mode)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    @ViewBuilder
+    private var scopeSelector: some View {
+        if availableScopes.count > 1 {
+            Picker(
+                NSLocalizedString("power.scope.title", comment: ""),
+                selection: $selectedScope
+            ) {
+                ForEach(availableScopes) { scope in
+                    Text(NSLocalizedString(scope.localizationKey, comment: ""))
+                        .tag(scope)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("power-scope-picker")
+        } else if let scope = availableScopes.first {
+            HStack(spacing: 6) {
+                Image(systemName: scope.systemImageName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DuoStatusStyle.muted)
+
+                Text(NSLocalizedString(scope.localizationKey, comment: ""))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DuoStatusStyle.muted)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var readOnlyModeRows: some View {
+        let scopes = availableScopes.isEmpty
+            ? PowerSourceScope.allCases
+            : availableScopes
+
+        ForEach(scopes) { scope in
+            StatusValueRow(
+                title: NSLocalizedString(scope.localizationKey, comment: ""),
+                value: localizedMode(mode(for: scope))
+            )
+        }
+    }
+
+    private func modeRow(_ mode: PowerMode, isSelected: Bool) -> some View {
+        Button {
+            Task {
+                await controls.setPowerMode(mode, scope: selectedScope)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: mode.systemImageName)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : DuoStatusStyle.accent)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        isSelected
+                            ? DuoStatusStyle.accent
+                            : Color.primary.opacity(0.08),
+                        in: Circle()
+                    )
+
+                Text(NSLocalizedString(mode.localizationKey, comment: ""))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 0)
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DuoStatusStyle.accent)
+                }
+            }
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!canEditModes)
+        .accessibilityIdentifier("power-mode-\(mode.rawValue)")
     }
 
     @ViewBuilder
@@ -118,7 +239,9 @@ struct PowerControlView: View {
                     Spacer(minLength: 0)
                     Button(NSLocalizedString("common.apply", comment: "")) {
                         Task {
-                            await controls.setChargeLimit(Int(selectedChargeLimit.rounded()))
+                            await controls.setChargeLimit(
+                                Int(selectedChargeLimit.rounded())
+                            )
                         }
                     }
                     .buttonStyle(.borderedProminent)
@@ -135,35 +258,36 @@ struct PowerControlView: View {
         }
     }
 
-    @ViewBuilder
-    private func modePicker(
-        scope: PowerSourceScope,
-        currentMode: PowerMode?
-    ) -> some View {
-        if let currentMode {
-            Picker(
-                NSLocalizedString(scope.localizationKey, comment: ""),
-                selection: Binding(
-                    get: { currentMode },
-                    set: { newMode in
-                        Task {
-                            await controls.setPowerMode(newMode, scope: scope)
-                        }
-                    }
-                )
-            ) {
-                ForEach(availableModes) { mode in
-                    Text(NSLocalizedString(mode.localizationKey, comment: ""))
-                        .tag(mode)
-                }
+    private var batterySettingsFallback: some View {
+        Button {
+            SettingsWindowAccess.openBatterySettings()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(DuoStatusStyle.muted)
+
+                Text(NSLocalizedString("power.open-system-settings", comment: ""))
+                    .font(.system(size: 11, weight: .medium))
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DuoStatusStyle.muted)
             }
-            .pickerStyle(.menu)
-            .disabled(controls.powerOperationState.isPending)
-        } else {
-            StatusValueRow(
-                title: NSLocalizedString(scope.localizationKey, comment: ""),
-                value: NSLocalizedString("status.unavailable", comment: "")
-            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("open-battery-settings")
+    }
+
+    private func mode(for scope: PowerSourceScope) -> PowerMode? {
+        switch scope {
+        case .battery:
+            return status.batteryMode
+        case .powerAdapter:
+            return status.adapterMode
         }
     }
 
@@ -173,5 +297,29 @@ struct PowerControlView: View {
         }
 
         return NSLocalizedString(mode.localizationKey, comment: "")
+    }
+}
+
+private extension PowerMode {
+    var systemImageName: String {
+        switch self {
+        case .automatic:
+            return "battery.100"
+        case .lowPower:
+            return "battery.25"
+        case .highPower:
+            return "bolt.fill"
+        }
+    }
+}
+
+private extension PowerSourceScope {
+    var systemImageName: String {
+        switch self {
+        case .battery:
+            return "battery.75"
+        case .powerAdapter:
+            return "powerplug"
+        }
     }
 }
