@@ -338,6 +338,112 @@ struct mac_duo_statusTests {
         #expect(!ChargeLimitValidator.isAllowed(90, values: [80, 85, 95, 100]))
     }
 
+    @Test func pmsetModeParserMapsAllPowermodeValues() {
+        #expect(
+            PMSetPowerModeParser.modeName(
+                for: PMSetModeReadout(key: "powermode", value: 0)
+            ) == "automatic"
+        )
+        #expect(
+            PMSetPowerModeParser.modeName(
+                for: PMSetModeReadout(key: "powermode", value: 1)
+            ) == "lowPower"
+        )
+        #expect(
+            PMSetPowerModeParser.modeName(
+                for: PMSetModeReadout(key: "powermode", value: 2)
+            ) == "highPower"
+        )
+        #expect(
+            PMSetPowerModeParser.value(for: "highPower", key: "lowpowermode") == nil
+        )
+    }
+
+    @Test func pmsetModeParserReadsBatteryAndAdapterSections() {
+        let output = """
+        Battery Power:
+         powermode            1
+        AC Power:
+         powermode            2
+        """
+
+        let readout = PMSetPowerModeParser.parseScopedModes(output)
+
+        #expect(readout?.battery == PMSetModeReadout(key: "powermode", value: 1))
+        #expect(readout?.adapter == PMSetModeReadout(key: "powermode", value: 2))
+    }
+
+    @Test func pmsetModeParserSupportsLowPowerOnlyOutput() {
+        let capabilities = PMSetPowerModeParser.parseCapabilities(
+            """
+            Capabilities for Battery Power:
+             lowpowermode
+            """
+        )
+
+        #expect(capabilities?.supportsLowPower == true)
+        #expect(capabilities?.supportsHighPower == false)
+        #expect(
+            PMSetPowerModeParser.modeName(
+                for: PMSetModeReadout(key: "lowpowermode", value: 1)
+            ) == "lowPower"
+        )
+    }
+
+    @Test func pmsetModeParserRejectsMalformedOrIncompleteOutput() {
+        #expect(
+            PMSetPowerModeParser.parseScopedModes(
+                """
+                Battery Power:
+                 powermode 3
+                AC Power:
+                 powermode 0
+                """
+            ) == nil
+        )
+        #expect(
+            PMSetPowerModeParser.parseScopedModes(
+                """
+                Battery Power:
+                 powermode 0
+                """
+            ) == nil
+        )
+        #expect(
+            PMSetPowerModeParser.parseActiveMode(
+                """
+                System-wide power settings:
+                Currently in use:
+                 powermode 0
+                 lowpowermode 1
+                """
+            ) == nil
+        )
+    }
+
+    @Test func pmsetModeParserReadsTheCurrentActiveSection() {
+        let readout = PMSetPowerModeParser.parseActiveMode(
+            """
+            System-wide power settings:
+            Currently in use:
+             powermode            0
+            """
+        )
+
+        #expect(readout == PMSetModeReadout(key: "powermode", value: 0))
+    }
+
+    @Test func powerPolicyDoesNotInferAutomaticWithoutAReadback() async {
+        let provider = PowerPolicyProvider(
+            helper: RecordingPowerControl(capabilities: .unsupported),
+            lowPowerModeEnabled: { false }
+        )
+
+        let status = await provider.read()
+
+        #expect(status.activeMode == nil)
+    }
+
     @Test func powerCapabilitiesSeparateAuthorizationFromSupport() {
         let authorized = PowerCapabilities(
             energyModeScopes: [],

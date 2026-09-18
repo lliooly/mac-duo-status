@@ -53,6 +53,8 @@ struct UnavailablePowerBackend: PowerBackend {
 enum PowerBackendError: Error {
     case unsupported
     case invalidParameter
+    case executionFailed
+    case timeout
 }
 
 final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
@@ -60,7 +62,7 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
     private let wifiBackend: any WiFiSavedNetworkBackend
 
     init(
-        backend: any PowerBackend = UnavailablePowerBackend(),
+        backend: any PowerBackend = PMSetPowerBackend(),
         wifiBackend: any WiFiSavedNetworkBackend = CoreWLANWiFiSavedNetworkBackend()
     ) {
         self.backend = backend
@@ -148,6 +150,8 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
             code = 1
         case PowerBackendError.unsupported:
             code = 2
+        case PowerBackendError.executionFailed, PowerBackendError.timeout:
+            code = 3
         case WiFiBackendError.invalidParameter:
             code = 101
         case WiFiBackendError.networkNotFound:

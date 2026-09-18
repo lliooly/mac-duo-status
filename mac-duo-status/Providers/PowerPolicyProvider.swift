@@ -8,22 +8,29 @@ import Foundation
 final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @unchecked Sendable {
     private let helper: any PowerControlProviding
     private let notificationCenter: NotificationCenter
+    private let lowPowerModeEnabled: @Sendable () -> Bool
     private let lock = NSLock()
     private var observer: NSObjectProtocol?
     private var changeHandler: (@Sendable () -> Void)?
 
     init(
         helper: (any PowerControlProviding)? = nil,
-        notificationCenter: NotificationCenter = .default
+        notificationCenter: NotificationCenter = .default,
+        lowPowerModeEnabled: @escaping @Sendable () -> Bool = {
+            ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
     ) {
         self.helper = helper ?? PowerHelperClient()
         self.notificationCenter = notificationCenter
+        self.lowPowerModeEnabled = lowPowerModeEnabled
     }
 
     func read() async -> PowerPolicyStatus {
         let capabilities = await helper.capabilities()
-        let isLowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-        let activeMode: PowerMode = isLowPowerModeEnabled ? .lowPower : .automatic
+        let isLowPowerModeEnabled = lowPowerModeEnabled()
+        let activeMode = await helper.readActivePowerMode() ?? (
+            isLowPowerModeEnabled ? .lowPower : nil
+        )
         let chargeLimit = await helper.readChargeLimit()
 
         return PowerPolicyStatus(
@@ -82,6 +89,10 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
         await helper.readPowerMode(scope: scope)
+    }
+
+    func readActivePowerMode() async -> PowerMode? {
+        await helper.readActivePowerMode()
     }
 
     func setChargeLimit(_ percent: Int) async throws {

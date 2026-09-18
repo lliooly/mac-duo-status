@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000010000000000000015 /* PMSetPowerModeParser.swift in DuoStatusPowerHelper */ = {isa = PBXBuildFile; fileRef = A10000010000000000000014 /* PMSetPowerModeParser.swift */; };
 		A10000010000000000000012 /* DuoStatusPowerHelper in app executables */ = {isa = PBXBuildFile; fileRef = A10000010000000000000001 /* DuoStatusPowerHelper */; };
 		A10000010000000000000013 /* power helper launchd plist */ = {isa = PBXBuildFile; fileRef = A1000001000000000000000D /* com.shishishi3.duo-status.power-helper.plist */; };
 /* End PBXBuildFile section */
@@ -41,6 +42,7 @@
 		0F69FE3F305811FC002C656F /* mac-duo-statusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "mac-duo-statusUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000010000000000000001 /* DuoStatusPowerHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "com.shishishi3.duo-status.power-helper"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000001000000000000000D /* com.shishishi3.duo-status.power-helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist"; sourceTree = SOURCE_ROOT; };
+		A10000010000000000000014 /* PMSetPowerModeParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Domain/PMSetPowerModeParser.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -97,6 +99,7 @@
 				0F69FE38305811FC002C656F /* mac-duo-statusTests */,
 				0F69FE42305811FC002C656F /* mac-duo-statusUITests */,
 				A10000010000000000000002 /* DuoStatusPowerHelper */,
+				A10000010000000000000016 /* Shared power mode source */,
 				0F69FE27305811FB002C656F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -110,6 +113,14 @@
 				A10000010000000000000001 /* DuoStatusPowerHelper */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000010000000000000016 /* Shared power mode source */ = {
+			isa = PBXGroup;
+			children = (
+				A10000010000000000000014 /* PMSetPowerModeParser.swift */,
+			);
+			name = "Shared power mode source";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -289,6 +300,7 @@
 		A10000010000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				A10000010000000000000015 /* PMSetPowerModeParser.swift in DuoStatusPowerHelper */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */

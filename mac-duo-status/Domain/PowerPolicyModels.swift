@@ -142,3 +142,9 @@ protocol PowerControlProviding: Sendable {
     func requestHelperApproval() async -> HelperStatus
     func unregisterHelper() async -> HelperStatus
 }
+
+extension PowerControlProviding {
+    func readActivePowerMode() async -> PowerMode? {
+        nil
+    }
+}

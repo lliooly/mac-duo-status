@@ -183,6 +183,49 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
         }
     }
 
+    func readActivePowerMode() async -> PowerMode? {
+        guard currentStatus() == .authorized else {
+            return nil
+        }
+
+        let connection = XPCConnectionBox(makeConnection())
+        return await withCheckedContinuation { continuation in
+            let finish = Once {
+                connection.invalidate()
+            }
+            let timeout = XPCRequestTimeout()
+            timeout.start(after: requestTimeoutNanoseconds) {
+                finish.run {
+                    continuation.resume(returning: nil)
+                }
+            }
+            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
+                finish.run {
+                    timeout.cancel()
+                    continuation.resume(returning: nil)
+                }
+            } as? DuoStatusPowerHelperProtocol
+            guard let proxy else {
+                finish.run {
+                    timeout.cancel()
+                    continuation.resume(returning: nil)
+                }
+                return
+            }
+
+            proxy.readPowerState { _, _, activeMode, _ in
+                finish.run {
+                    timeout.cancel()
+                    continuation.resume(
+                        returning: activeMode.flatMap {
+                            PowerMode(rawValue: String($0))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     func setChargeLimit(_ percent: Int) async throws {
         guard (80...100).contains(percent) else {
             throw ControlError.invalidChargeLimit
