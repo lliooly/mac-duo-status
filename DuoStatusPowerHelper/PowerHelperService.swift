@@ -57,9 +57,14 @@ enum PowerBackendError: Error {
 
 final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
     private let backend: any PowerBackend
+    private let wifiBackend: any WiFiSavedNetworkBackend
 
-    init(backend: any PowerBackend = UnavailablePowerBackend()) {
+    init(
+        backend: any PowerBackend = UnavailablePowerBackend(),
+        wifiBackend: any WiFiSavedNetworkBackend = CoreWLANWiFiSavedNetworkBackend()
+    ) {
         self.backend = backend
+        self.wifiBackend = wifiBackend
     }
 
     func getCapabilities(
@@ -120,6 +125,22 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
         }
     }
 
+    func connectToSavedWiFi(
+        _ interfaceName: NSString,
+        ssidData: NSData,
+        withReply reply: @escaping (NSError?) -> Void
+    ) {
+        do {
+            try wifiBackend.connectToSavedNetwork(
+                interfaceName: String(interfaceName),
+                ssidData: ssidData as Data
+            )
+            reply(nil)
+        } catch {
+            reply(Self.error(for: error))
+        }
+    }
+
     private static func error(for error: Error) -> NSError {
         let code: Int
         switch error {
@@ -127,6 +148,24 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
             code = 1
         case PowerBackendError.unsupported:
             code = 2
+        case WiFiBackendError.invalidParameter:
+            code = 101
+        case WiFiBackendError.networkNotFound:
+            code = 102
+        case WiFiBackendError.credentialsRequired:
+            code = 103
+        case WiFiBackendError.authenticationFailed:
+            code = 104
+        case WiFiBackendError.unsupportedSecurity:
+            code = 105
+        case WiFiBackendError.authorizationRequired:
+            code = 106
+        case WiFiBackendError.temporarilyUnavailable:
+            code = 107
+        case WiFiBackendError.operationTimeout:
+            code = 108
+        case WiFiBackendError.failed:
+            code = 109
         default:
             code = 3
         }

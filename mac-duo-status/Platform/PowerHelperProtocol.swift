@@ -23,4 +23,9 @@ protocol DuoStatusPowerHelperProtocol {
         _ percent: NSNumber,
         withReply reply: @escaping (NSError?) -> Void
     )
+    func connectToSavedWiFi(
+        _ interfaceName: NSString,
+        ssidData: NSData,
+        withReply reply: @escaping (NSError?) -> Void
+    )
 }

@@ -247,3 +247,10 @@ protocol NetworkControlProviding: Sendable {
         remember: Bool
     ) async throws -> WiFiConnectionResult
 }
+
+protocol SavedWiFiNetworkConnecting: Sendable {
+    func connectToSavedNetwork(
+        interfaceName: String,
+        ssidData: Data
+    ) async throws
+}

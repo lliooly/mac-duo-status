@@ -74,8 +74,11 @@ struct ProviderContainer: Sendable {
     }
 
     static var live: ProviderContainer {
-        let networkControl = CoreWLANNetworkController()
-        let powerControl = PowerPolicyProvider()
+        let helper = PowerHelperClient()
+        let networkControl = CoreWLANNetworkController(
+            savedNetworkConnector: helper
+        )
+        let powerControl = PowerPolicyProvider(helper: helper)
 
         return ProviderContainer(
             battery: BatteryProvider(),
