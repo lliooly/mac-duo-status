@@ -11,6 +11,7 @@ struct DuoStatusApp: App {
     @StateObject private var preferencesStore: PreferencesStore
     @StateObject private var statusStore: SystemStatusStore
     @StateObject private var controlCoordinator: ControlCoordinator
+    @StateObject private var wifiAuthorization: LocalAuthenticationWiFiAuthorizer
 
     init() {
         let preferences = PreferencesStore(
@@ -21,15 +22,18 @@ struct DuoStatusApp: App {
             preferences: preferences,
             providers: providers
         )
+        let authorization = LocalAuthenticationWiFiAuthorizer()
         let controls = ControlCoordinator(
             statusStore: status,
             networkControl: providers.networkControl,
-            powerControl: providers.powerControl
+            powerControl: providers.powerControl,
+            wifiAuthorization: authorization
         )
 
         _preferencesStore = StateObject(wrappedValue: preferences)
         _statusStore = StateObject(wrappedValue: status)
         _controlCoordinator = StateObject(wrappedValue: controls)
+        _wifiAuthorization = StateObject(wrappedValue: authorization)
 
         status.start()
     }
@@ -40,6 +44,7 @@ struct DuoStatusApp: App {
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
                 .environmentObject(controlCoordinator)
+                .environmentObject(wifiAuthorization)
         } label: {
             CombinedStatusIcon(
                 snapshot: statusStore.snapshot,
@@ -63,6 +68,7 @@ struct DuoStatusApp: App {
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
                 .environmentObject(controlCoordinator)
+                .environmentObject(wifiAuthorization)
         }
     }
 

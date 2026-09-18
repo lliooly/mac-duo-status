@@ -392,6 +392,7 @@ struct mac_duo_statusTests {
             statusStore: store,
             networkControl: networkControl,
             powerControl: PlaceholderPowerControlProvider(),
+            wifiAuthorization: RecordingWiFiAuthorization(),
             networkConfirmationAttempts: 1,
             networkConfirmationDelayNanoseconds: 0
         )
@@ -437,7 +438,8 @@ struct mac_duo_statusTests {
                 defaults: defaults
             ),
             networkControl: networkControl,
-            powerControl: PlaceholderPowerControlProvider()
+            powerControl: PlaceholderPowerControlProvider(),
+            wifiAuthorization: RecordingWiFiAuthorization()
         )
         let target = WiFiNetworkCandidate(
             id: "known-office",
@@ -466,6 +468,80 @@ struct mac_duo_statusTests {
     }
 
     @Test
+    func coordinatorBlocksKnownNetworkUntilAppAuthorizationSucceeds() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let networkControl = RecordingNetworkControl(
+            result: WiFiConnectionResult(wasRemembered: true)
+        )
+        let authorization = RecordingWiFiAuthorization(shouldAuthorize: false)
+        let controls = ControlCoordinator(
+            statusStore: makeStatusStore(
+                network: .unavailable(reason: "No network"),
+                defaults: defaults
+            ),
+            networkControl: networkControl,
+            powerControl: PlaceholderPowerControlProvider(),
+            wifiAuthorization: authorization
+        )
+        let target = WiFiNetworkCandidate(
+            id: "known-office",
+            interfaceName: "en0",
+            ssidData: Data([14, 15]),
+            displayName: "Known Office",
+            bssid: nil,
+            supportedSecurity: [.wpa2Personal],
+            rssi: nil,
+            isHidden: false,
+            isKnown: true,
+            hotspotConfirmation: .unavailable,
+            scanToken: UUID(),
+            isDiscovered: true
+        )
+
+        let error = await controls.connect(
+            to: target,
+            credential: nil,
+            remember: false
+        )
+
+        #expect(error == .authorizationRequired)
+        #expect(controls.networkOperationState == .failed(.authorizationRequired))
+        #expect(authorization.ensureAuthorizedCalls == 1)
+        #expect(networkControl.connectCalls == 0)
+    }
+
+    @Test
+    func persistentWiFiAuthorizationReusesTheMarkerWithoutReauthenticating() async {
+        let store = InMemoryWiFiAuthorizationStore()
+        let authenticator = RecordingWiFiSystemAuthenticator(result: true)
+        let authorization = LocalAuthenticationWiFiAuthorizer(
+            store: store,
+            authenticator: authenticator
+        )
+
+        #expect(!authorization.isAuthorized)
+        #expect(await authorization.ensureAuthorized())
+        #expect(authorization.isAuthorized)
+        #expect(await authorization.ensureAuthorized())
+        #expect(authenticator.authenticateCalls == 1)
+
+        let reloadedAuthorization = LocalAuthenticationWiFiAuthorizer(
+            store: store,
+            authenticator: authenticator
+        )
+        #expect(reloadedAuthorization.isAuthorized)
+        #expect(await reloadedAuthorization.ensureAuthorized())
+        #expect(authenticator.authenticateCalls == 1)
+
+        #expect(reloadedAuthorization.revoke())
+        #expect(!reloadedAuthorization.isAuthorized)
+        #expect(!store.containsMarker())
+    }
+
+    @Test
     func coordinatorDoesNotReportSuccessWhenNetworkReadbackTimesOut() async {
         let suiteName = "DuoStatusTests-(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -482,6 +558,7 @@ struct mac_duo_statusTests {
             statusStore: store,
             networkControl: networkControl,
             powerControl: PlaceholderPowerControlProvider(),
+            wifiAuthorization: RecordingWiFiAuthorization(),
             networkConfirmationAttempts: 1,
             networkConfirmationDelayNanoseconds: 0
         )
@@ -527,7 +604,8 @@ struct mac_duo_statusTests {
                 defaults: defaults
             ),
             networkControl: PlaceholderNetworkControlProvider(),
-            powerControl: powerControl
+            powerControl: powerControl,
+            wifiAuthorization: RecordingWiFiAuthorization()
         )
 
         await controls.setChargeLimit(90)
@@ -558,7 +636,8 @@ struct mac_duo_statusTests {
                 defaults: defaults
             ),
             networkControl: PlaceholderNetworkControlProvider(),
-            powerControl: powerControl
+            powerControl: powerControl,
+            wifiAuthorization: RecordingWiFiAuthorization()
         )
 
         await controls.setPowerMode(.lowPower, scope: .battery)
@@ -946,6 +1025,63 @@ private final class RecordingNetworkControl: NetworkControlProviding {
         if let connectError {
             throw connectError
         }
+        return result
+    }
+}
+
+@MainActor
+private final class RecordingWiFiAuthorization: WiFiAuthorizationProviding {
+    private let shouldAuthorize: Bool
+    private(set) var ensureAuthorizedCalls = 0
+    private(set) var isAuthorized = false
+
+    init(shouldAuthorize: Bool = true) {
+        self.shouldAuthorize = shouldAuthorize
+    }
+
+    func ensureAuthorized() async -> Bool {
+        ensureAuthorizedCalls += 1
+        isAuthorized = shouldAuthorize
+        return shouldAuthorize
+    }
+
+    @discardableResult
+    func revoke() -> Bool {
+        isAuthorized = false
+        return true
+    }
+}
+
+@MainActor
+private final class InMemoryWiFiAuthorizationStore: WiFiAuthorizationStore {
+    private(set) var markerExists = false
+
+    func containsMarker() -> Bool {
+        markerExists
+    }
+
+    func saveMarker() -> Bool {
+        markerExists = true
+        return true
+    }
+
+    func removeMarker() -> Bool {
+        markerExists = false
+        return true
+    }
+}
+
+@MainActor
+private final class RecordingWiFiSystemAuthenticator: WiFiSystemAuthenticator {
+    let result: Bool
+    private(set) var authenticateCalls = 0
+
+    init(result: Bool) {
+        self.result = result
+    }
+
+    func authenticate() async -> Bool {
+        authenticateCalls += 1
         return result
     }
 }

@@ -17,6 +17,7 @@ final class ControlCoordinator: ObservableObject {
     private let statusStore: SystemStatusStore
     private let networkControl: any NetworkControlProviding
     private let powerControl: any PowerControlProviding
+    private let wifiAuthorization: any WiFiAuthorizationProviding
     private let networkConfirmationAttempts: Int
     private let networkConfirmationDelayNanoseconds: UInt64
 
@@ -24,12 +25,14 @@ final class ControlCoordinator: ObservableObject {
         statusStore: SystemStatusStore,
         networkControl: any NetworkControlProviding,
         powerControl: any PowerControlProviding,
+        wifiAuthorization: any WiFiAuthorizationProviding,
         networkConfirmationAttempts: Int = 12,
         networkConfirmationDelayNanoseconds: UInt64 = 250_000_000
     ) {
         self.statusStore = statusStore
         self.networkControl = networkControl
         self.powerControl = powerControl
+        self.wifiAuthorization = wifiAuthorization
         self.networkConfirmationAttempts = max(networkConfirmationAttempts, 1)
         self.networkConfirmationDelayNanoseconds = networkConfirmationDelayNanoseconds
     }
@@ -94,6 +97,12 @@ final class ControlCoordinator: ObservableObject {
         networkOperationState = .pending
         lastNetworkResult = nil
         lastNetworkRememberRequest = remember
+
+        if target.isKnown,
+           await !wifiAuthorization.ensureAuthorized() {
+            networkOperationState = .failed(.authorizationRequired)
+            return .authorizationRequired
+        }
 
         do {
             let result = try await networkControl.connect(
