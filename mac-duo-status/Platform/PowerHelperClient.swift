@@ -7,6 +7,8 @@ import Foundation
 import ServiceManagement
 
 final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting, @unchecked Sendable {
+    private static let expectedHelperRevision = 2
+
     private let service: SMAppService
     private let machServiceName = "com.shishishi3.duo-status.power-helper"
     private let requestTimeoutNanoseconds: UInt64 = 5_000_000_000
@@ -21,15 +23,13 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
     }
 
     func capabilities() async -> PowerCapabilities {
+        await readCapabilitiesFromHelper()
+    }
+
+    private func readCapabilitiesFromHelper() async -> PowerCapabilities {
         let helperStatus = currentStatus()
         guard helperStatus == .authorized else {
-            return PowerCapabilities(
-                energyModeScopes: [],
-                supportedPowerModes: [],
-                chargeLimitValues: [],
-                requiresHelper: true,
-                helperStatus: helperStatus
-            )
+            return capabilities(for: helperStatus)
         }
 
         let connection = XPCConnectionBox(makeConnection())
@@ -58,35 +58,45 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                 return
             }
 
-            proxy.getCapabilities { scopes, modes, minimum, maximum in
-                finish.run {
-                    timeout.cancel()
-                    let parsedScopes = Set(
-                        scopes.compactMap { value in
-                            (value as? String).flatMap(PowerSourceScope.init(rawValue:))
-                        }
-                    )
-                    let parsedModes = Set(
-                        modes.compactMap { value in
-                            (value as? String).flatMap(PowerMode.init(rawValue:))
-                        }
-                    )
-                    let chargeLimitValues: Set<Int>
-                    if let minimum = minimum?.intValue, let maximum = maximum?.intValue {
-                        chargeLimitValues = Set(minimum...maximum)
-                    } else {
-                        chargeLimitValues = []
+            proxy.getHelperInfo { revision in
+                guard revision.intValue == Self.expectedHelperRevision else {
+                    finish.run {
+                        timeout.cancel()
+                        continuation.resume(returning: self.unavailableCapabilities())
                     }
+                    return
+                }
 
-                    continuation.resume(
-                        returning: PowerCapabilities(
-                            energyModeScopes: parsedScopes,
-                            supportedPowerModes: parsedModes,
-                            chargeLimitValues: chargeLimitValues,
-                            requiresHelper: true,
-                            helperStatus: .authorized
+                proxy.getCapabilities { scopes, modes, minimum, maximum in
+                    finish.run {
+                        timeout.cancel()
+                        let parsedScopes = Set(
+                            scopes.compactMap { value in
+                                (value as? String).flatMap(PowerSourceScope.init(rawValue:))
+                            }
                         )
-                    )
+                        let parsedModes = Set(
+                            modes.compactMap { value in
+                                (value as? String).flatMap(PowerMode.init(rawValue:))
+                            }
+                        )
+                        let chargeLimitValues: Set<Int>
+                        if let minimum = minimum?.intValue, let maximum = maximum?.intValue {
+                            chargeLimitValues = Set(minimum...maximum)
+                        } else {
+                            chargeLimitValues = []
+                        }
+
+                        continuation.resume(
+                            returning: PowerCapabilities(
+                                energyModeScopes: parsedScopes,
+                                supportedPowerModes: parsedModes,
+                                chargeLimitValues: chargeLimitValues,
+                                requiresHelper: true,
+                                helperStatus: .authorized
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -373,6 +383,10 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
 
     func requestHelperApproval() async -> HelperStatus {
         do {
+            if currentStatus() == .authorized {
+                return await reloadHelper()
+            }
+
             try service.register()
             return currentStatus()
         } catch {
@@ -386,6 +400,16 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
             return currentStatus()
         } catch {
             return .failed(reason: "Unable to unregister the power helper")
+        }
+    }
+
+    private func reloadHelper() async -> HelperStatus {
+        do {
+            try await service.unregister()
+            try service.register()
+            return currentStatus()
+        } catch {
+            return .failed(reason: "Unable to reload the power helper")
         }
     }
 
@@ -403,12 +427,16 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
     }
 
     private func unavailableCapabilities() -> PowerCapabilities {
+        capabilities(for: .unavailable(reason: "The power helper is unavailable"))
+    }
+
+    private func capabilities(for status: HelperStatus) -> PowerCapabilities {
         PowerCapabilities(
             energyModeScopes: [],
             supportedPowerModes: [],
             chargeLimitValues: [],
             requiresHelper: true,
-            helperStatus: .unavailable(reason: "The power helper is unavailable")
+            helperStatus: status
         )
     }
 

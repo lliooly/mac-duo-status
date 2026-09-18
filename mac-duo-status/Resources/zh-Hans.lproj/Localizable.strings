@@ -36,6 +36,7 @@
 "power.mode.low-power" = "低电量模式";
 "power.mode.high-power" = "高性能模式";
 "power.enable" = "启用";
+"power.repair" = "修复";
 "power.disable" = "停用";
 "power.helper.not-installed" = "未启用辅助进程";
 "power.helper.requires-approval" = "等待系统批准";

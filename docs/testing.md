@@ -53,6 +53,7 @@ Provider 应该通过协议或测试替身注入数据，不依赖测试机当�
 - NetworkControlProviding 的扫描、连接、记忆选项和 Wi-Fi 开关可通过测试替身验证。
 - PowerPolicyProvider 和 PowerHelperClient 在未安装、待授权、已授权和后端不可用时返回正确能力状态。
 - PowerPolicyProvider 在 helper 已授权时使用 active mode 读回，在 helper 不可用时保持安全的只读状态。
+- helper 接口版本不匹配时，PowerHelperClient 标记为不可用并显示用户触发的修复入口；设备能力正常但不支持能源模式时不触发重注册。
 
 ### 2.3 状态源测试
 
@@ -116,6 +117,7 @@ Provider 应该通过协议或测试替身注入数据，不依赖测试机当�
 | helper 已授权且输出包含 `powermode`/High Power | 显示 Automatic、Low Power、High Power 三行 |
 | 只有 `lowpowermode` | 只显示 Automatic 和 Low Power |
 | helper 未安装或未授权 | 显示只读状态、授权入口和 Battery 系统设置回退 |
+| helper 已授权但仍运行旧版本 | 显示不可用和修复入口；用户触发修复失败时不执行写入 |
 | `pmset` 输出缺失或无法解析 | 显示暂不可用，不显示 Automatic，不执行写入 |
 | 写入后读回不一致 | 保持未确认状态，不显示成功 |
 

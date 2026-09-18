@@ -58,6 +58,7 @@ enum PowerBackendError: Error {
 }
 
 final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
+    private static let helperRevision = 2
     private let backend: any PowerBackend
     private let wifiBackend: any WiFiSavedNetworkBackend
 
@@ -67,6 +68,10 @@ final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
     ) {
         self.backend = backend
         self.wifiBackend = wifiBackend
+    }
+
+    func getHelperInfo(withReply reply: @escaping (NSNumber) -> Void) {
+        reply(Self.helperRevision as NSNumber)
     }
 
     func getCapabilities(

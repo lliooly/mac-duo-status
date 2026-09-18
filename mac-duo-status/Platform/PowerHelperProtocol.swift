@@ -7,6 +7,7 @@ import Foundation
 
 @objc(DuoStatusPowerHelperProtocol)
 protocol DuoStatusPowerHelperProtocol {
+    func getHelperInfo(withReply reply: @escaping (NSNumber) -> Void)
     func getCapabilities(
         withReply reply: @escaping (NSArray, NSArray, NSNumber?, NSNumber?) -> Void
     )

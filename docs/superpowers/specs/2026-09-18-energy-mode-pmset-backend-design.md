@@ -165,9 +165,14 @@ Charge Limit 继续沿用现有独立能力状态，不与能源模式能力互�
 
 ### 5.3 XPC 边界
 
-现有 XPC 协议继续只暴露结构化的能力、读取和写入方法。主应用不接收原始命令
-字符串，也不接收管理员密码。辅助进程继续使用现有签名客户端校验，只接受
+现有 XPC 协议继续只暴露结构化的能力、读取和写入方法。额外提供结构化的
+helper 接口版本握手，用来识别应用更新后仍在运行的旧 helper；主应用不接收原始
+命令字符串，也不接收管理员密码。辅助进程继续使用现有签名客户端校验，只接受
 `com.shishishi3.mac-duo-status` 和当前 Team ID 的主应用连接。
+
+当 helper 已授权但版本握手失败或 XPC 服务不可用时，主应用将状态标记为不可用，
+并提供用户触发的修复入口执行一次注销并重新注册。正常返回“设备不支持”或
+`pmset` 输出不可解析时不触发重注册，仍按能力降级为只读。
 
 ## 6. 控制流程
 
@@ -220,6 +225,8 @@ SystemStatusStore.refreshNowAndWait()
 
 - 不把 `/usr/bin/pmset` 的完整 stderr 直接展示给用户；只映射为现有
   `ControlError` 或新的稳定错误。
+- 不把 SMAppService 的“已授权”直接当作 helper 进程可用；必须先通过接口版本握手
+  和结构化能力读取。
 - 不在日志中记录用户路径、密码或任意命令字符串。
 - 不因辅助进程失败阻塞主应用启动。
 - `pmset` 能力缺失时，主应用仍保持 Battery、Network 和 System Health 的只读
@@ -245,6 +252,7 @@ SystemStatusStore.refreshNowAndWait()
 - 读回不一致进入 writeUnconfirmed。
 - 同时触发两个能源模式写入时，第二个请求被 pending 保护。
 - 辅助进程不可用时主应用保持可启动和只读。
+- 已授权但运行旧 helper 时标记为不可用并显示修复入口；用户触发修复失败时仍保持只读。
 
 ### 9.3 目标设备验收
 
@@ -264,7 +272,8 @@ SystemStatusStore.refreshNowAndWait()
 4. 增加 Battery 系统设置回退入口。
 5. 补充领域、控制层和 UI 测试。
 6. 更新 `README.md`、`docs/architecture.md` 和 `docs/testing.md` 的能力边界。
-7. 在目标 Apple silicon 设备上进行真实写入与回读验收。
+7. 增加 helper 接口版本握手和用户触发的受控重注册。
+8. 在目标 Apple silicon 设备上进行真实写入与回读验收。
 
 ## 11. 明确不做的事情
 

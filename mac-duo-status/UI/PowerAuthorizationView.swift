@@ -45,7 +45,12 @@ struct PowerAuthorizationView: View {
                     .font(.system(size: 11, weight: .medium))
                     .disabled(controls.powerOperationState.isPending)
                 } else {
-                    Button(NSLocalizedString("power.enable", comment: "")) {
+                    Button(
+                        NSLocalizedString(
+                            helperStatus.isRepairable ? "power.repair" : "power.enable",
+                            comment: ""
+                        )
+                    ) {
                         Task {
                             await controls.requestHelperApproval()
                         }
@@ -66,6 +71,13 @@ struct PowerAuthorizationView: View {
 }
 
 private extension HelperStatus {
+    var isRepairable: Bool {
+        if case .unavailable = self {
+            return true
+        }
+        return false
+    }
+
     var localizedTitle: String {
         switch self {
         case .notInstalled:

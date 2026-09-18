@@ -36,6 +36,7 @@
 "power.mode.low-power" = "Low Power";
 "power.mode.high-power" = "High Power";
 "power.enable" = "Enable";
+"power.repair" = "Repair";
 "power.disable" = "Disable";
 "power.helper.not-installed" = "Helper not enabled";
 "power.helper.requires-approval" = "Waiting for approval";
