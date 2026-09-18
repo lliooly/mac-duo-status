@@ -17,7 +17,7 @@
 - Providers 层包含协议、真实 Apple 平台适配器和测试替身。
 - Control 层包含 Wi-Fi 控制协调器、电源策略控制协议和独立操作状态。
 - CoreWLAN 已接入扫描、已知网络合并、连接和 Wi-Fi 开关；凭据只在当前操作期间存在。
-- 电源策略已接入公开低电量模式读取、能力模型和辅助进程 XPC 合同。实际电源写入后端不可用时，界面明确降级为只读。
+- 电源策略通过公开 Foundation API 读取 Low Power 状态，并在 helper 已授权时通过固定参数的 `/usr/bin/pmset` 读取和切换 Battery/AC 两套能源模式。能力、输出解析或 helper 不满足条件时，界面明确降级为只读。
 - `DuoStatusPowerHelper` 已作为可签名、可授权的 LaunchDaemon 目标接入工程，但主应用不会因为辅助进程不可用而阻塞启动。
 - UI 层包含组合图标、弹出面板、状态区域和设置面板。
 - 单元测试覆盖纯逻辑、测试替身和统一状态源。
@@ -73,6 +73,8 @@ SystemStatusStore 不负责绘制图标，也不负责直接存储用户偏好�
 - 提供电池变化通知。
 
 使用 IOPowerSources 读取电池基础信息。电源策略单独由 `PowerPolicyProvider` 读取，避免把策略写入混入基础电池 Provider。
+
+`PowerPolicyProvider` 优先使用 helper 回读 `pmset -g custom` 的 Battery Power/AC Power 区块以及 `pmset -g` 的当前生效区块。helper 不可用时只保留公开 `ProcessInfo.isLowPowerModeEnabled` 的结果；Low Power 未开启时不把未知状态伪装为 Automatic。
 
 ### 4.3 NetworkProvider
 
@@ -244,8 +246,9 @@ PreferencesStore 负责保存：
 - getloadavg。
 - CoreWLAN 的网络扫描、连接和 Wi-Fi 开关。
 - `SMAppService`、LaunchDaemon 和 XPC，用于可选的电源辅助进程。
+- 系统内置 `/usr/bin/pmset`，仅由 helper 通过固定参数数组读取和写入能源模式。
 
-工程不使用私有 API、管理员密码采集、任意 shell 拼接或让主应用整体以 root 运行。电源写入后端当前可以返回“不支持/不可用”，此时主应用继续展示公开 API 的只读结果。
+工程不使用私有 API、管理员密码采集、任意 shell 拼接、私有电源 plist 或让主应用整体以 root 运行。`pmset` 的能源模式参数属于未完整文档化的系统命令接口，因此必须经过能力探测、严格解析、固定参数白名单和写入后真实回读；后端不可用时主应用继续展示公开 API 的只读结果。
 
 由于 macOS 对沙盒主应用与非沙盒 LaunchDaemon 的组合有部署限制，当前主应用 target 不启用 App Sandbox；这不改变主应用不以 root 运行的边界。发布构建仍需使用签名和 notarization 流程验证辅助进程授权。
 
@@ -266,7 +269,7 @@ UI 根据状态显示中性图形、简短说明或隐藏对应控件。一个 P
 - 主应用不以 root 身份运行，也不请求管理员密码。
 - Wi-Fi 凭据只存在于当前连接调用和安全输入控件生命周期内，不写入 UserDefaults、日志或模型持久层。
 - “记住此网络”由用户明确选择，默认关闭；关闭时应用不主动提交配置文件，但不宣称覆盖 macOS 的全局记忆策略。
-- 电源辅助进程仅暴露固定 XPC 方法，并校验调用方签名身份；主应用不执行任意 shell 命令。
+- 电源辅助进程仅暴露固定 XPC 方法，并校验调用方签名身份；主应用不执行任意 shell 命令，helper 也不接受用户提供的命令字符串或路径。
 - 所有写入采用 pending → backend → readback → confirmed/writeUnconfirmed 流程。超时、授权失败和后备实现失败都必须如实展示。
 
 ## 12. 骨架阶段不应提前决定的内容

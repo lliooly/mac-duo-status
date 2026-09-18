@@ -752,6 +752,37 @@ struct mac_duo_statusTests {
         #expect(powerControl.setPowerModeCalls == 1)
     }
 
+    @Test
+    func coordinatorBlocksASecondPowerWriteWhileTheFirstIsPending() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let powerControl = BlockingPowerControl()
+        let controls = ControlCoordinator(
+            statusStore: makeStatusStore(
+                network: .unavailable(reason: "No network"),
+                defaults: defaults
+            ),
+            networkControl: PlaceholderNetworkControlProvider(),
+            powerControl: powerControl,
+            wifiAuthorization: RecordingWiFiAuthorization()
+        )
+
+        let firstOperation = Task { @MainActor in
+            await controls.setPowerMode(.lowPower, scope: .battery)
+        }
+        await Task.yield()
+
+        await controls.setPowerMode(.automatic, scope: .battery)
+
+        #expect(powerControl.setPowerModeCalls == 1)
+        #expect(controls.powerOperationState == .pending)
+
+        powerControl.releasePowerMode()
+        await firstOperation.value
+    }
+
     @Test func onlyWiFiShowsSignalStrength() {
         let wifi = NetworkStatus(
             availability: .available,
@@ -1236,6 +1267,54 @@ private final class RecordingPowerControl: PowerControlProviding {
 
     func unregisterHelper() async -> HelperStatus {
         .notInstalled
+    }
+}
+
+@MainActor
+private final class BlockingPowerControl: PowerControlProviding {
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private(set) var setPowerModeCalls = 0
+
+    func capabilities() async -> PowerCapabilities {
+        PowerCapabilities(
+            energyModeScopes: [.battery],
+            supportedPowerModes: [.automatic, .lowPower],
+            chargeLimitValues: [],
+            requiresHelper: true,
+            helperStatus: .authorized
+        )
+    }
+
+    func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws {
+        setPowerModeCalls += 1
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+    }
+
+    func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
+        .lowPower
+    }
+
+    func setChargeLimit(_ percent: Int) async throws {
+        throw ControlError.helperUnavailable
+    }
+
+    func readChargeLimit() async -> Int? {
+        nil
+    }
+
+    func requestHelperApproval() async -> HelperStatus {
+        .authorized
+    }
+
+    func unregisterHelper() async -> HelperStatus {
+        .notInstalled
+    }
+
+    func releasePowerMode() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
