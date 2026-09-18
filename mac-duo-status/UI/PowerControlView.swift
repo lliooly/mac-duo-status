@@ -86,11 +86,15 @@ struct PowerControlView: View {
         }
         .onAppear {
             selectedChargeLimit = Double(status.chargeLimit ?? 80)
+            statusStore.refreshNow()
         }
         .onChange(of: status.chargeLimit) { newValue in
             if let newValue {
                 selectedChargeLimit = Double(newValue)
             }
+        }
+        .onChange(of: statusStore.snapshot.battery.powerSource) { _ in
+            statusStore.refreshNow()
         }
     }
 

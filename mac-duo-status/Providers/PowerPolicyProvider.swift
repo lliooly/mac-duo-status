@@ -32,12 +32,13 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
             isLowPowerModeEnabled ? .lowPower : nil
         )
         let chargeLimit = await helper.readChargeLimit()
+        let powerModes = await helper.readPowerModes()
 
         return PowerPolicyStatus(
             availability: .available,
             activeMode: activeMode,
-            batteryMode: await helper.readPowerMode(scope: .battery),
-            adapterMode: await helper.readPowerMode(scope: .powerAdapter),
+            batteryMode: powerModes.batteryMode,
+            adapterMode: powerModes.adapterMode,
             chargeLimit: chargeLimit,
             chargeLimitCapability: capabilities.chargeLimitState,
             helperStatus: capabilities.helperStatus,
@@ -85,6 +86,10 @@ final class PowerPolicyProvider: PowerPolicyProviding, PowerControlProviding, @u
 
     func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws {
         try await helper.setPowerMode(mode, scope: scope)
+    }
+
+    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
+        await helper.readPowerModes()
     }
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {

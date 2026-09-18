@@ -136,6 +136,7 @@ extension PowerPolicyProviding {
 protocol PowerControlProviding: Sendable {
     func capabilities() async -> PowerCapabilities
     func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws
+    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?)
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode?
     func readActivePowerMode() async -> PowerMode?
     func setChargeLimit(_ percent: Int) async throws
@@ -145,6 +146,13 @@ protocol PowerControlProviding: Sendable {
 }
 
 extension PowerControlProviding {
+    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
+        (
+            await readPowerMode(scope: .battery),
+            await readPowerMode(scope: .powerAdapter)
+        )
+    }
+
     func readActivePowerMode() async -> PowerMode? {
         nil
     }

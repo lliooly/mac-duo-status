@@ -9,6 +9,12 @@ import ServiceManagement
 final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting, @unchecked Sendable {
     private static let expectedHelperRevision = 2
 
+    private struct RawPowerState: Sendable {
+        let batteryMode: String?
+        let adapterMode: String?
+        let activeMode: String?
+    }
+
     private let service: SMAppService
     private let machServiceName = "com.shishishi3.duo-status.power-helper"
     private let requestTimeoutNanoseconds: UInt64 = 5_000_000_000
@@ -151,49 +157,27 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
         }
     }
 
+    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
+        guard let state = await readPowerState() else {
+            return (nil, nil)
+        }
+
+        return (
+            state.batteryMode.flatMap(PowerMode.init(rawValue:)),
+            state.adapterMode.flatMap(PowerMode.init(rawValue:))
+        )
+    }
+
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
-        guard currentStatus() == .authorized else {
-            return nil
-        }
-
-        let connection = XPCConnectionBox(makeConnection())
-        return await withCheckedContinuation { continuation in
-            let finish = Once {
-                connection.invalidate()
-            }
-            let timeout = XPCRequestTimeout()
-            timeout.start(after: requestTimeoutNanoseconds) {
-                finish.run {
-                    continuation.resume(returning: nil)
-                }
-            }
-            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(returning: nil)
-                }
-            } as? DuoStatusPowerHelperProtocol
-            guard let proxy else {
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(returning: nil)
-                }
-                return
-            }
-
-            proxy.readPowerState { batteryMode, adapterMode, _, _ in
-                finish.run {
-                    timeout.cancel()
-                    let rawValue = scope == .battery ? batteryMode : adapterMode
-                    continuation.resume(
-                        returning: rawValue.flatMap { PowerMode(rawValue: String($0)) }
-                    )
-                }
-            }
-        }
+        let modes = await readPowerModes()
+        return scope == .battery ? modes.batteryMode : modes.adapterMode
     }
 
     func readActivePowerMode() async -> PowerMode? {
+        await readPowerState()?.activeMode.flatMap(PowerMode.init(rawValue:))
+    }
+
+    private func readPowerState() async -> RawPowerState? {
         guard currentStatus() == .authorized else {
             return nil
         }
@@ -223,13 +207,15 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
                 return
             }
 
-            proxy.readPowerState { _, _, activeMode, _ in
+            proxy.readPowerState { batteryMode, adapterMode, activeMode, _ in
                 finish.run {
                     timeout.cancel()
                     continuation.resume(
-                        returning: activeMode.flatMap {
-                            PowerMode(rawValue: String($0))
-                        }
+                        returning: RawPowerState(
+                            batteryMode: batteryMode.map { String($0) },
+                            adapterMode: adapterMode.map { String($0) },
+                            activeMode: activeMode.map { String($0) }
+                        )
                     )
                 }
             }
