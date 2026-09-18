@@ -68,6 +68,14 @@
 "wifi.remember" = "记住此网络";
 "wifi.connect" = "连接";
 "wifi.connected-not-remembered" = "已连接，未能记住网络";
+"wifi.authorization.title" = "Wi-Fi 授权";
+"wifi.authorization.authorized" = "已授权，可连接已保存网络";
+"wifi.authorization.not-authorized" = "连接已保存网络前需要授权";
+"wifi.authorization.description" = "使用 Touch ID、Apple Watch 或 Mac 密码授权一次，即可复用已保存的 Wi-Fi 凭据。";
+"wifi.authorization.authorize" = "立即授权";
+"wifi.authorization.revoke" = "撤销授权";
+"wifi.authorization.reason" = "允许 Duo Status 连接已保存的 Wi-Fi 网络";
+"wifi.authorization.helper-description" = "首次连接已保存网络需要启用一次辅助进程；启用后会由系统复用保存的 Wi-Fi 配置。";
 "wifi.security.open" = "开放";
 "wifi.security.wep" = "WEP";
 "wifi.security.dynamic-wep" = "动态 WEP";
@@ -108,3 +116,4 @@
 "settings.colored-icon" = "使用彩色图标";
 "settings.indicators" = "指示器";
 "settings.default-sections" = "默认展开区域";
+"settings.wifi" = "Wi-Fi";

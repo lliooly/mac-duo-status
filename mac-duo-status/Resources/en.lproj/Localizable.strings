@@ -68,6 +68,14 @@
 "wifi.remember" = "Remember This Network";
 "wifi.connect" = "Connect";
 "wifi.connected-not-remembered" = "Connected, but the network was not remembered";
+"wifi.authorization.title" = "Wi-Fi Authorization";
+"wifi.authorization.authorized" = "Authorized for saved networks";
+"wifi.authorization.not-authorized" = "Authorization required for saved networks";
+"wifi.authorization.description" = "Authorize once with Touch ID, Apple Watch, or your Mac password to reuse saved Wi-Fi credentials.";
+"wifi.authorization.authorize" = "Authorize";
+"wifi.authorization.revoke" = "Revoke";
+"wifi.authorization.reason" = "Allow Duo Status to connect to saved Wi-Fi networks";
+"wifi.authorization.helper-description" = "The helper must be enabled once before saved networks can use the system's saved Wi-Fi configuration.";
 "wifi.security.open" = "Open";
 "wifi.security.wep" = "WEP";
 "wifi.security.dynamic-wep" = "Dynamic WEP";
@@ -108,3 +116,4 @@
 "settings.colored-icon" = "Use colored icon";
 "settings.indicators" = "Indicators";
 "settings.default-sections" = "Default expanded sections";
+"settings.wifi" = "Wi-Fi";

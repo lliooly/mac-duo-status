@@ -81,6 +81,18 @@ struct WiFiControlView: View {
                     .foregroundStyle(.red)
             }
 
+            if shouldShowHelperAuthorization {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString("wifi.authorization.helper-description", comment: ""))
+                        .font(.system(size: 11))
+                        .foregroundStyle(DuoStatusStyle.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    PowerAuthorizationView(compact: true)
+                }
+                .padding(.vertical, 2)
+            }
+
             if controls.lastNetworkRememberRequest,
                let result = controls.lastNetworkResult,
                !result.wasRemembered {
@@ -203,6 +215,18 @@ struct WiFiControlView: View {
 
     private var networkOperationIsPending: Bool {
         controls.networkOperationState.isPending
+    }
+
+    private var shouldShowHelperAuthorization: Bool {
+        guard controls.helperStatus != .authorized else {
+            return false
+        }
+
+        guard case let .failed(error) = controls.networkOperationState else {
+            return false
+        }
+
+        return error == .authorizationRequired || error == .helperUnavailable
     }
 
     private func openNetwork(_ network: WiFiNetworkCandidate) {
