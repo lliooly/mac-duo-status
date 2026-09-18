@@ -35,9 +35,18 @@ struct PowerControlView: View {
     }
 
     private var preferredScope: PowerSourceScope {
-        statusStore.snapshot.battery.powerSource == .powerAdapter
-            ? .powerAdapter
-            : .battery
+        currentPowerSourceScope ?? .battery
+    }
+
+    private var currentPowerSourceScope: PowerSourceScope? {
+        switch statusStore.snapshot.battery.powerSource {
+        case .battery:
+            return .battery
+        case .powerAdapter:
+            return .powerAdapter
+        case .unknown:
+            return nil
+        }
     }
 
     private var modeReadbackUnavailable: Bool {
@@ -90,6 +99,19 @@ struct PowerControlView: View {
                 selectedChargeLimit = Double(newValue)
             }
         }
+        .onChange(of: statusStore.snapshot.battery.powerSource) { _ in
+            synchronizeSelectedScope()
+        }
+    }
+
+    private func synchronizeSelectedScope() {
+        guard let currentPowerSourceScope,
+              availableScopes.contains(currentPowerSourceScope)
+        else {
+            return
+        }
+
+        selectedScope = currentPowerSourceScope
     }
 
     private var header: some View {
