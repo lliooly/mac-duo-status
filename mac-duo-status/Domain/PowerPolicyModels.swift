@@ -137,6 +137,7 @@ protocol PowerControlProviding: Sendable {
     func capabilities() async -> PowerCapabilities
     func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode?
+    func readActivePowerMode() async -> PowerMode?
     func setChargeLimit(_ percent: Int) async throws
     func readChargeLimit() async -> Int?
     func requestHelperApproval() async -> HelperStatus

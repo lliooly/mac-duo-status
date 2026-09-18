@@ -444,6 +444,20 @@ struct mac_duo_statusTests {
         #expect(status.activeMode == nil)
     }
 
+    @Test func powerPolicyUsesTheHelperActiveModeReadback() async {
+        let provider = PowerPolicyProvider(
+            helper: RecordingPowerControl(
+                capabilities: .unsupported,
+                activePowerModeReadback: .highPower
+            ),
+            lowPowerModeEnabled: { false }
+        )
+
+        let status = await provider.read()
+
+        #expect(status.activeMode == .highPower)
+    }
+
     @Test func powerCapabilitiesSeparateAuthorizationFromSupport() {
         let authorized = PowerCapabilities(
             energyModeScopes: [],
@@ -1227,6 +1241,7 @@ private final class RecordingWiFiSystemAuthenticator: WiFiSystemAuthenticator {
 private final class RecordingPowerControl: PowerControlProviding {
     let capabilitiesValue: PowerCapabilities
     let powerModeReadback: PowerMode?
+    let activePowerModeReadback: PowerMode?
     let chargeLimitReadback: Int?
     private(set) var setPowerModeCalls = 0
     private(set) var setChargeLimitCalls = 0
@@ -1234,10 +1249,12 @@ private final class RecordingPowerControl: PowerControlProviding {
     init(
         capabilities: PowerCapabilities,
         powerModeReadback: PowerMode? = nil,
+        activePowerModeReadback: PowerMode? = nil,
         chargeLimitReadback: Int? = nil
     ) {
         self.capabilitiesValue = capabilities
         self.powerModeReadback = powerModeReadback
+        self.activePowerModeReadback = activePowerModeReadback
         self.chargeLimitReadback = chargeLimitReadback
     }
 
@@ -1251,6 +1268,10 @@ private final class RecordingPowerControl: PowerControlProviding {
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
         powerModeReadback
+    }
+
+    func readActivePowerMode() async -> PowerMode? {
+        activePowerModeReadback
     }
 
     func setChargeLimit(_ percent: Int) async throws {
