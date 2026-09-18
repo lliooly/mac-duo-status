@@ -381,6 +381,19 @@ struct mac_duo_statusTests {
         )
     }
 
+    @Test func pmsetModeParserReadsAdapterCapabilities() {
+        let capabilities = PMSetPowerModeParser.parseCapabilities(
+            """
+            Capabilities for AC Power:
+             lowpowermode
+             highpowermode
+            """
+        )
+
+        #expect(capabilities?.supportsLowPower == true)
+        #expect(capabilities?.supportsHighPower == true)
+    }
+
     @Test func pmsetModeParserRejectsMalformedOrIncompleteOutput() {
         #expect(
             PMSetPowerModeParser.parseScopedModes(

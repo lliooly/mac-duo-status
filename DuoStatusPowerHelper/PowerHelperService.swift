@@ -47,7 +47,7 @@ enum PowerBackendError: Error {
 }
 
 final class PowerHelperService: NSObject, DuoStatusPowerHelperProtocol {
-    private static let helperRevision = 2
+    private static let helperRevision = 4
     private let backend: any PowerBackend
     private let wifiBackend: any WiFiSavedNetworkBackend
 

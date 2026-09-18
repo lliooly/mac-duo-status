@@ -7,7 +7,7 @@ import Foundation
 import ServiceManagement
 
 final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting, @unchecked Sendable {
-    private static let expectedHelperRevision = 2
+    private static let expectedHelperRevision = 4
 
     private struct RawPowerState: Sendable {
         let batteryMode: String?

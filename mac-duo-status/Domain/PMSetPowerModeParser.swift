@@ -23,6 +23,10 @@ struct PMSetCapabilityReadout: Equatable, Sendable {
 enum PMSetPowerModeParser {
     static let powerModeKey = "powermode"
     static let lowPowerModeKey = "lowpowermode"
+    private static let capabilityHeaders = [
+        "Capabilities for Battery Power:",
+        "Capabilities for AC Power:"
+    ]
 
     static func parseCapabilities(_ output: String) -> PMSetCapabilityReadout? {
         let lines = normalizedLines(from: output)
@@ -31,7 +35,7 @@ enum PMSetPowerModeParser {
         var highPower = false
 
         for line in lines {
-            if line == "Capabilities for Battery Power:" {
+            if capabilityHeaders.contains(line) {
                 guard !hasCapabilitiesHeader else {
                     return nil
                 }
