@@ -7,6 +7,7 @@ import AppKit
 import SwiftUI
 
 struct WiFiControlView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var controls: ControlCoordinator
     @EnvironmentObject private var statusStore: SystemStatusStore
 
@@ -54,108 +55,106 @@ struct WiFiControlView: View {
     }
 
     private var networkList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
+        VStack(alignment: .leading, spacing: 12) {
+            PopoverPageHeader(
+                title: NSLocalizedString("wifi.title", comment: ""),
+                subtitle: snapshot.network.name ?? snapshot.network.kind.localizedTitle,
+                onBack: onBack
+            ) {
+                Button {
+                    Task {
+                        await controls.scanNetworks(includeHidden: false)
+                    }
+                } label: {
+                    Image(systemName: networkOperationIsPending ? "hourglass" : "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .rotationEffect(.degrees(networkOperationIsPending && !reduceMotion ? 180 : 0))
+                }
+                .buttonStyle(DuoStatusIconButtonStyle())
+                .disabled(networkOperationIsPending)
+                .accessibilityLabel(NSLocalizedString("wifi.scan", comment: ""))
+            }
 
-            Divider()
-                .overlay(DuoStatusStyle.divider)
+            DuoStatusCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle(
+                        NSLocalizedString("wifi.title", comment: ""),
+                        isOn: Binding(
+                            get: { snapshot.network.isWiFiEnabled ?? false },
+                            set: { enabled in
+                                Task {
+                                    await controls.setWiFiEnabled(enabled)
+                                }
+                            }
+                        )
+                    )
+                    .font(.system(size: 13, weight: .semibold))
+                    .toggleStyle(.switch)
+                    .disabled(snapshot.network.isWiFiEnabled == nil || networkOperationIsPending)
+                    .accessibilityIdentifier("wifi-toggle")
 
-            Toggle(
-                NSLocalizedString("wifi.title", comment: ""),
-                isOn: Binding(
-                    get: { snapshot.network.isWiFiEnabled ?? false },
-                    set: { enabled in
-                        Task {
-                            await controls.setWiFiEnabled(enabled)
+                    if case let .failed(error) = controls.networkOperationState {
+                        Label(
+                            NSLocalizedString(error.localizationKey, comment: ""),
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                    }
+
+                    if shouldShowHelperAuthorization {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("wifi.authorization.helper-description", comment: ""))
+                                .font(.system(size: 11))
+                                .foregroundStyle(DuoStatusStyle.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            PowerAuthorizationView(compact: true)
                         }
                     }
-                )
-            )
-            .toggleStyle(.switch)
-            .disabled(snapshot.network.isWiFiEnabled == nil || networkOperationIsPending)
-            .accessibilityIdentifier("wifi-toggle")
 
-            if case let .failed(error) = controls.networkOperationState {
-                Text(NSLocalizedString(error.localizationKey, comment: ""))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
-            }
-
-            if shouldShowHelperAuthorization {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("wifi.authorization.helper-description", comment: ""))
-                        .font(.system(size: 11))
-                        .foregroundStyle(DuoStatusStyle.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    PowerAuthorizationView(compact: true)
+                    if controls.lastNetworkRememberRequest,
+                       let result = controls.lastNetworkResult,
+                       !result.wasRemembered {
+                        Text(NSLocalizedString("wifi.connected-not-remembered", comment: ""))
+                            .font(.system(size: 11))
+                            .foregroundStyle(DuoStatusStyle.muted)
+                    }
                 }
-                .padding(.vertical, 2)
             }
 
-            if controls.lastNetworkRememberRequest,
-               let result = controls.lastNetworkResult,
-               !result.wasRemembered {
-                Text(NSLocalizedString("wifi.connected-not-remembered", comment: ""))
-                    .font(.system(size: 11))
-                    .foregroundStyle(DuoStatusStyle.muted)
+            DuoStatusCard {
+                WiFiNetworkListView(
+                    hotspots: hotspots,
+                    knownNetworks: knownNetworks,
+                    otherNetworks: otherNetworks,
+                    currentSSIDData: snapshot.network.ssidData,
+                    currentNetworkName: snapshot.network.name,
+                    isPending: networkOperationIsPending,
+                    onOpenNetwork: openNetwork
+                )
+                .equatable()
             }
-
-            WiFiNetworkListView(
-                hotspots: hotspots,
-                knownNetworks: knownNetworks,
-                otherNetworks: otherNetworks,
-                currentSSIDData: snapshot.network.ssidData,
-                currentNetworkName: snapshot.network.name,
-                isPending: networkOperationIsPending,
-                onOpenNetwork: openNetwork
-            )
-            .equatable()
 
             if showsHiddenNetwork {
-                hiddenNetworkEntry
+                DuoStatusCard {
+                    hiddenNetworkEntry
+                }
+                .transition(
+                    reduceMotion
+                        ? .opacity
+                        : .move(edge: .bottom).combined(with: .opacity)
+                )
             }
 
             controlsRow
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(NSLocalizedString("common.back", comment: ""))
-
-            Text(NSLocalizedString("wifi.title", comment: ""))
-                .font(.system(size: 16, weight: .semibold))
-
-            Spacer(minLength: 0)
-
-            Button {
-                Task {
-                    await controls.scanNetworks(includeHidden: false)
-                }
-            } label: {
-                Image(systemName: networkOperationIsPending ? "hourglass" : "arrow.clockwise")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(networkOperationIsPending)
-            .accessibilityLabel(NSLocalizedString("wifi.scan", comment: ""))
-        }
-    }
-
     private var controlsRow: some View {
         HStack(spacing: 10) {
             Button {
-                withAnimation(.easeInOut(duration: 0.16)) {
+                withAnimation(reduceMotion ? nil : DuoStatusStyle.quickAnimation) {
                     showsHiddenNetwork.toggle()
                 }
             } label: {
@@ -311,7 +310,7 @@ private struct WiFiNetworkListView: View, Equatable {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 360)
+        .frame(height: 320)
     }
 
     private func networkSection(
@@ -320,8 +319,9 @@ private struct WiFiNetworkListView: View, Equatable {
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DuoStatusStyle.muted)
+                .padding(.horizontal, 4)
 
             if networks.isEmpty {
                 Text(NSLocalizedString("wifi.no-networks", comment: ""))
@@ -367,7 +367,11 @@ private struct WiFiNetworkListView: View, Equatable {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(minHeight: 32)
+            .frame(minHeight: 36)
+            .background(
+                isCurrent ? DuoStatusStyle.accent.opacity(0.08) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

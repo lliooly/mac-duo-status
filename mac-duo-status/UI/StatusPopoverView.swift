@@ -3,24 +3,25 @@
 //  mac-duo-status
 //
 
-import Foundation
 import AppKit
+import Foundation
 import SwiftUI
 
 struct StatusPopoverView: View {
-    private enum PopoverDestination {
+    private enum PopoverDestination: Hashable {
         case root
         case wifi
         case power
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var preferences: PreferencesStore
     @EnvironmentObject private var statusStore: SystemStatusStore
     @EnvironmentObject private var controls: ControlCoordinator
 
     @State private var destination: PopoverDestination = .root
-
-    private let popoverWidth: CGFloat = 320
+    @State private var navigationDirection = 1
+    @State private var rootCardsPresented = false
 
     private var snapshot: SystemStatusSnapshot {
         statusStore.snapshot
@@ -28,61 +29,87 @@ struct StatusPopoverView: View {
 
     var body: some View {
         popoverSurface
-        .tint(DuoStatusStyle.accent)
-        .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            statusStore.refreshNow()
-        }
+            .tint(DuoStatusStyle.accent)
+            .fixedSize(horizontal: false, vertical: true)
+            .onAppear {
+                statusStore.refreshNow()
+            }
     }
 
     @ViewBuilder
     private var destinationView: some View {
-        switch destination {
-        case .root:
-            rootContent
-        case .wifi:
-            WiFiControlView {
-                destination = .root
-            }
-        case .power:
-            PowerControlView {
-                destination = .root
+        ZStack(alignment: .top) {
+            switch destination {
+            case .root:
+                rootContent
+                    .transition(pageTransition)
+            case .wifi:
+                WiFiControlView {
+                    navigate(to: .root, direction: -1)
+                }
+                .transition(pageTransition)
+            case .power:
+                PowerControlView {
+                    navigate(to: .root, direction: -1)
+                }
+                .transition(pageTransition)
             }
         }
+        .animation(reduceMotion ? nil : DuoStatusStyle.pageAnimation, value: destination)
     }
 
     private var rootContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            summary
-
-            popoverDivider
-
-            StatusSectionView(
-                section: .battery,
-                isExpanded: sectionBinding(for: .battery)
+        VStack(alignment: .leading, spacing: 12) {
+            PopoverPageHeader(
+                title: "Duo Status",
+                subtitle: updatedText
             ) {
-                batteryDetails
+                settingsAction
             }
-            .frame(maxWidth: .infinity)
 
-            StatusSectionView(
-                section: .network,
-                isExpanded: sectionBinding(for: .network)
-            ) {
-                networkDetails
-            }
-            .frame(maxWidth: .infinity)
+            batteryCard
+                .modifier(
+                    RootCardEntrance(
+                        isPresented: rootCardsPresented,
+                        order: 0,
+                        reduceMotion: reduceMotion
+                    )
+                )
 
-            StatusSectionView(
-                section: .systemHealth,
-                isExpanded: sectionBinding(for: .systemHealth)
-            ) {
-                healthDetails
-            }
-            .frame(maxWidth: .infinity)
+            networkCard
+                .modifier(
+                    RootCardEntrance(
+                        isPresented: rootCardsPresented,
+                        order: 1,
+                        reduceMotion: reduceMotion
+                    )
+                )
 
-            bottomActions
+            healthCard
+                .modifier(
+                    RootCardEntrance(
+                        isPresented: rootCardsPresented,
+                        order: 2,
+                        reduceMotion: reduceMotion
+                    )
+                )
+
+            quitAction
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.top, 2)
+        }
+        .onAppear {
+            guard !rootCardsPresented else {
+                return
+            }
+
+            if reduceMotion {
+                rootCardsPresented = true
+            } else {
+                withAnimation(.easeOut(duration: 0.28)) {
+                    rootCardsPresented = true
+                }
+            }
         }
     }
 
@@ -90,45 +117,228 @@ struct StatusPopoverView: View {
     private var popoverSurface: some View {
         if #available(macOS 26.0, *) {
             destinationView
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 12)
-                .frame(width: popoverWidth)
+                .padding(DuoStatusStyle.panelPadding)
+                .frame(width: DuoStatusStyle.panelWidth)
                 .glassEffect(
                     .clear,
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    in: RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
         } else {
             destinationView
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 12)
-                .frame(width: popoverWidth)
+                .padding(DuoStatusStyle.panelPadding)
+                .frame(width: DuoStatusStyle.panelWidth)
                 .background(
-                    .ultraThinMaterial.opacity(0.56),
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
                 .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
         }
     }
 
-    private var popoverDivider: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.56))
-            .frame(height: 1)
-            .padding(.horizontal, 2)
+    private var batteryCard: some View {
+        DuoStatusCard {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Image(systemName: batterySymbolName)
+                        .font(.system(size: 22, weight: .regular))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(DuoStatusStyle.success, .primary)
+                        .frame(width: 28)
+
+                    Text(NSLocalizedString("section.battery", comment: ""))
+                        .font(.system(size: 14, weight: .semibold))
+
+                    Spacer(minLength: 0)
+
+                    Text(batteryPercentageText)
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                }
+
+                batteryProgress
+
+                HStack(alignment: .center, spacing: 10) {
+                    Text(batterySummaryText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(DuoStatusStyle.muted)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        navigate(to: .power, direction: 1)
+                    } label: {
+                        actionLabel(NSLocalizedString("power.open-control", comment: ""))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("open-power-control")
+                }
+            }
+        }
+        .accessibilityIdentifier("status-card-battery")
     }
 
-    private var bottomActions: some View {
-        HStack(spacing: 8) {
-            settingsAction
-                .frame(maxWidth: .infinity)
+    @ViewBuilder
+    private var batteryProgress: some View {
+        if let fraction = snapshot.battery.chargeFraction,
+           snapshot.battery.hasBuiltInBattery {
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(DuoStatusStyle.trackFill)
 
-            quitAction
-                .frame(width: 92)
+                    Capsule()
+                        .fill(DuoStatusStyle.success)
+                        .frame(
+                            width: proxy.size.width * CGFloat(min(max(fraction, 0), 1))
+                        )
+                }
+            }
+            .frame(height: 7)
+            .animation(
+                reduceMotion ? nil : DuoStatusStyle.quickAnimation,
+                value: fraction
+            )
+        } else {
+            Capsule()
+                .fill(DuoStatusStyle.trackFill)
+                .frame(height: 7)
         }
+    }
+
+    private var networkCard: some View {
+        DuoStatusCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: snapshot.network.kind.systemImageName)
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(DuoStatusStyle.accent)
+                        .frame(width: 28)
+
+                    Text(NSLocalizedString("wifi.title", comment: ""))
+                        .font(.system(size: 14, weight: .semibold))
+
+                    Spacer(minLength: 0)
+
+                    if snapshot.network.shouldShowWiFiSignal {
+                        Image(systemName: "cellularbars")
+                            .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(DuoStatusStyle.success)
+                        .accessibilityLabel(NSLocalizedString("network.signal", comment: ""))
+                        .accessibilityValue(
+                            snapshot.network.signalLevel.map { "\($0)/4" } ?? "–"
+                        )
+                    }
+                }
+
+                Text(networkName)
+                    .font(.system(size: 18, weight: .bold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                HStack(spacing: 10) {
+                    Text(networkStatusText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(DuoStatusStyle.muted)
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        navigate(to: .wifi, direction: 1)
+                    } label: {
+                        actionLabel(NSLocalizedString("network.switch", comment: ""))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("open-wifi-control")
+                }
+            }
+        }
+        .accessibilityIdentifier("status-card-network")
+    }
+
+    private var healthCard: some View {
+        DuoStatusCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.system(size: 22, weight: .regular))
+                        .frame(width: 28)
+
+                    Text(NSLocalizedString("section.system", comment: ""))
+                        .font(.system(size: 14, weight: .semibold))
+                }
+
+                HealthMetricSelector(
+                    selection: Binding(
+                        get: { preferences.healthMetric },
+                        set: { statusStore.setHealthMetric($0) }
+                    )
+                )
+
+                if let details = selectedMetricDetails {
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(details.value)
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .id(details.value)
+                                .transition(.opacity)
+
+                            Text(details.title)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(DuoStatusStyle.muted)
+                        }
+
+                        Spacer(minLength: 0)
+                        healthDots
+                    }
+                    .animation(
+                        reduceMotion ? nil : DuoStatusStyle.quickAnimation,
+                        value: details.value
+                    )
+                } else {
+                    UnavailableStatusView(reason: nil)
+                        .frame(minHeight: 40)
+                }
+            }
+        }
+        .accessibilityIdentifier("status-card-system-health")
+    }
+
+    private var healthDots: some View {
+        let activeCount = snapshot.health.dotCount ?? 0
+
+        return HStack(spacing: 7) {
+            ForEach(0..<4, id: \.self) { index in
+                Circle()
+                    .fill(
+                        index < activeCount
+                            ? DuoStatusStyle.success
+                            : DuoStatusStyle.trackFill
+                    )
+                    .frame(width: 9, height: 9)
+            }
+        }
+        .accessibilityLabel(NSLocalizedString("health.dots", comment: ""))
+        .accessibilityValue("\(activeCount)/4")
     }
 
     @ViewBuilder
@@ -145,241 +355,113 @@ struct StatusPopoverView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, minHeight: 40)
-        .background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
+        .buttonStyle(DuoStatusIconButtonStyle())
         .accessibilityIdentifier("open-settings")
+    }
+
+    private var settingsActionLabel: some View {
+        Image(systemName: "gearshape")
+            .font(.system(size: 18, weight: .medium))
+            .accessibilityLabel(NSLocalizedString("settings.open", comment: ""))
     }
 
     private var quitAction: some View {
         Button {
             NSApplication.shared.terminate(nil)
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "power")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(DuoStatusStyle.muted)
-
-                Text(NSLocalizedString("common.quit", comment: ""))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            Label(NSLocalizedString("common.quit", comment: ""), systemImage: "power")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DuoStatusStyle.muted)
+                .padding(.horizontal, 4)
+                .frame(minHeight: 28)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, minHeight: 40)
-        .background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
         .accessibilityIdentifier("quit-app")
     }
 
-    private var settingsActionLabel: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "gearshape")
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(DuoStatusStyle.muted)
-                .frame(width: 20)
-
-            Text(NSLocalizedString("settings.open", comment: ""))
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 0)
-
+    private func actionLabel(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .lineLimit(1)
             Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(DuoStatusStyle.muted)
+                .font(.system(size: 9, weight: .bold))
         }
-        .padding(.horizontal, 12)
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(DuoStatusStyle.accent)
         .contentShape(Rectangle())
     }
 
-    private var summary: some View {
-        HStack(spacing: 8) {
-            CombinedStatusIcon(
-                snapshot: snapshot,
-                size: 50,
-                usesColor: preferences.usesColor
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Duo Status")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.primary)
-
-                Text(
-                    "\(NSLocalizedString("status.updated", comment: "")) " +
-                    snapshot.lastUpdated.formatted(date: .omitted, time: .shortened)
-                )
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(DuoStatusStyle.muted)
-            }
-
-            Spacer(minLength: 0)
+    private var updatedText: String {
+        if abs(snapshot.lastUpdated.timeIntervalSinceNow) < 10 {
+            return "\(NSLocalizedString("status.updated", comment: "")) " +
+                NSLocalizedString("status.just-now", comment: "")
         }
-        .padding(.horizontal, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "\(NSLocalizedString("status.updated", comment: "")) " +
+            formatter.localizedString(for: snapshot.lastUpdated, relativeTo: Date())
     }
 
-    @ViewBuilder
-    private var batteryDetails: some View {
-        if snapshot.battery.availability.reason != nil {
-            UnavailableStatusView(reason: nil)
-        } else if !snapshot.battery.hasBuiltInBattery {
-            UnavailableStatusView(
-                reason: NSLocalizedString("battery.no-built-in", comment: "")
-            )
-        } else {
-            if let chargeFraction = snapshot.battery.chargeFraction {
-                StatusValueRow(
-                    title: NSLocalizedString("battery.charge", comment: ""),
-                    value: "\(Int((chargeFraction * 100).rounded()))%",
-                    showsDivider: true
-                )
-            }
-
-            if let isCharging = snapshot.battery.isCharging {
-                StatusValueRow(
-                    title: NSLocalizedString("battery.charging", comment: ""),
-                    value: isCharging
-                        ? NSLocalizedString("common.yes", comment: "")
-                        : NSLocalizedString("common.no", comment: ""),
-                    showsDivider: true
-                )
-            }
-
-            StatusValueRow(
-                title: NSLocalizedString("battery.power-source", comment: ""),
-                value: snapshot.battery.powerSource.localizedTitle,
-                showsDivider: true
-            )
-
-            if snapshot.powerPolicy.activeMode == nil,
-               let isLowPowerModeEnabled = snapshot.battery.isLowPowerModeEnabled {
-                StatusValueRow(
-                    title: NSLocalizedString("battery.low-power-mode", comment: ""),
-                    value: isLowPowerModeEnabled
-                        ? NSLocalizedString("common.yes", comment: "")
-                        : NSLocalizedString("common.no", comment: "")
-                )
-            }
+    private var batteryPercentageText: String {
+        guard snapshot.battery.availability.reason == nil,
+              snapshot.battery.hasBuiltInBattery,
+              let fraction = snapshot.battery.chargeFraction
+        else {
+            return "–"
         }
 
-        StatusValueRow(
-            title: NSLocalizedString("power.active-mode", comment: ""),
-            value: snapshot.powerPolicy.activeMode.map {
-                NSLocalizedString($0.localizationKey, comment: "")
-            } ?? NSLocalizedString("status.unavailable", comment: ""),
-            showsDivider: true
-        )
-
-        Button {
-            destination = .power
-        } label: {
-            HStack {
-                Text(NSLocalizedString("power.open-control", comment: ""))
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(DuoStatusStyle.muted)
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.primary)
-            .frame(minHeight: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("open-power-control")
+        return "\(Int((fraction * 100).rounded()))%"
     }
 
-    @ViewBuilder
-    private var networkDetails: some View {
-        if snapshot.network.availability.reason != nil {
-            UnavailableStatusView(reason: nil)
-        } else {
-            StatusValueRow(
-                title: NSLocalizedString("network.type", comment: ""),
-                value: snapshot.network.kind.localizedTitle,
-                showsDivider: true
-            )
-
-            if snapshot.network.kind == .wifi || snapshot.network.kind == .hotspot {
-                StatusValueRow(
-                    title: NSLocalizedString("network.name", comment: ""),
-                    value: snapshot.network.name
-                        ?? NSLocalizedString("status.unavailable", comment: ""),
-                    showsDivider: true
-                )
-            }
-
-            if snapshot.network.shouldShowWiFiSignal {
-                StatusValueRow(
-                    title: NSLocalizedString("network.signal", comment: ""),
-                    value: snapshot.network.signalLevel.map { "\($0)/4" }
-                        ?? NSLocalizedString("status.unavailable", comment: "")
-                )
-            }
+    private var batterySymbolName: String {
+        guard snapshot.battery.hasBuiltInBattery,
+              let fraction = snapshot.battery.chargeFraction
+        else {
+            return "battery.0"
         }
 
-        Button {
-            destination = .wifi
-        } label: {
-            HStack {
-                Text(NSLocalizedString("network.switch", comment: ""))
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(DuoStatusStyle.muted)
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.primary)
-            .frame(minHeight: 28)
-            .contentShape(Rectangle())
+        if snapshot.battery.isCharging == true {
+            return "battery.100.bolt"
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("open-wifi-control")
+
+        switch fraction {
+        case ..<0.13:
+            return "battery.0"
+        case ..<0.38:
+            return "battery.25"
+        case ..<0.63:
+            return "battery.50"
+        case ..<0.88:
+            return "battery.75"
+        default:
+            return "battery.100"
+        }
     }
 
-    @ViewBuilder
-    private var healthDetails: some View {
-        HealthMetricSelector(
-            selection: Binding(
-                get: { preferences.healthMetric },
-                set: { statusStore.setHealthMetric($0) }
-            )
-        )
-        .padding(.bottom, 8)
+    private var batterySummaryText: String {
+        let source = snapshot.battery.powerSource.localizedTitle
+        let mode = snapshot.powerPolicy.activeMode.map {
+            NSLocalizedString($0.localizationKey, comment: "")
+        } ?? NSLocalizedString("status.unavailable", comment: "")
+        return "\(source) · \(mode)"
+    }
 
-        if let details = selectedMetricDetails {
-            StatusValueRow(
-                title: details.title,
-                value: details.value,
-                showsDivider: true
-            )
+    private var networkName: String {
+        snapshot.network.name ?? snapshot.network.kind.localizedTitle
+    }
 
-            if let score = snapshot.health.selectedScore {
-                StatusValueRow(
-                    title: NSLocalizedString("health.score", comment: ""),
-                    value: String(format: "%.2f", score),
-                    showsDivider: true
-                )
-            }
+    private var networkStatusText: String {
+        guard snapshot.network.availability.reason == nil else {
+            return NSLocalizedString("status.unavailable", comment: "")
+        }
 
-            if let dotCount = snapshot.health.dotCount {
-                StatusValueRow(
-                    title: NSLocalizedString("health.dots", comment: ""),
-                    value: "\(dotCount)/4"
-                )
-            }
-        } else {
-            UnavailableStatusView(reason: nil)
-                .padding(.top, 4)
+        switch snapshot.network.kind {
+        case .wifi, .ethernet, .hotspot:
+            return NSLocalizedString("network.connected", comment: "")
+        case .disconnected, .unavailable:
+            return snapshot.network.kind.localizedTitle
         }
     }
 
@@ -389,7 +471,6 @@ struct StatusPopoverView: View {
             guard let usage = snapshot.health.cpuUsagePercent else {
                 return nil
             }
-
             return (
                 NSLocalizedString("health.metric.cpu", comment: ""),
                 String(format: "%.0f%%", usage)
@@ -398,7 +479,6 @@ struct StatusPopoverView: View {
             guard let thermalState = snapshot.health.thermalState else {
                 return nil
             }
-
             return (
                 NSLocalizedString("health.metric.thermal", comment: ""),
                 thermalState.localizedTitle
@@ -407,7 +487,6 @@ struct StatusPopoverView: View {
             guard let load = snapshot.health.oneMinuteLoad else {
                 return nil
             }
-
             return (
                 NSLocalizedString("health.load.one-minute", comment: ""),
                 String(format: "%.2f", load)
@@ -415,15 +494,46 @@ struct StatusPopoverView: View {
         }
     }
 
-    private func sectionBinding(for section: StatusSection) -> Binding<Bool> {
-        Binding(
-            get: {
-                preferences.isExpanded(section)
-            },
-            set: { newValue in
-                preferences.setExpanded(newValue, for: section)
-            }
+    private var pageTransition: AnyTransition {
+        guard !reduceMotion else {
+            return .opacity
+        }
+
+        let insertionEdge: Edge = navigationDirection > 0 ? .trailing : .leading
+        let removalEdge: Edge = navigationDirection > 0 ? .leading : .trailing
+        return .asymmetric(
+            insertion: .move(edge: insertionEdge).combined(with: .opacity),
+            removal: .move(edge: removalEdge).combined(with: .opacity)
         )
+    }
+
+    private func navigate(to newDestination: PopoverDestination, direction: Int) {
+        navigationDirection = direction
+        if reduceMotion {
+            destination = newDestination
+        } else {
+            withAnimation(DuoStatusStyle.pageAnimation) {
+                destination = newDestination
+            }
+        }
+    }
+}
+
+private struct RootCardEntrance: ViewModifier {
+    let isPresented: Bool
+    let order: Int
+    let reduceMotion: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isPresented ? 1 : 0)
+            .offset(y: reduceMotion || isPresented ? 0 : 8)
+            .animation(
+                reduceMotion
+                    ? nil
+                    : .easeOut(duration: 0.24).delay(Double(order) * 0.035),
+                value: isPresented
+            )
     }
 }
 
@@ -455,7 +565,7 @@ private extension ThermalState {
     }
 }
 
-private extension NetworkKind {
+extension NetworkKind {
     var localizedTitle: String {
         switch self {
         case .wifi:

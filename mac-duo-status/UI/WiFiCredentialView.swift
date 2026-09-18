@@ -50,79 +50,79 @@ struct WiFiCredentialView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 26, height: 26)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(NSLocalizedString("common.back", comment: ""))
+            PopoverPageHeader(
+                title: candidate.displayName ?? NSLocalizedString("wifi.hidden", comment: ""),
+                subtitle: security.displayName,
+                onBack: onBack
+            )
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(candidate.displayName ?? NSLocalizedString("wifi.hidden", comment: ""))
-                        .font(.system(size: 16, weight: .semibold))
-                        .lineLimit(1)
+            DuoStatusCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 9) {
+                        Image(systemName: security == .open ? "wifi" : "lock.fill")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(DuoStatusStyle.accent)
+                            .frame(width: 24)
 
-                    Text(security.displayName)
+                        Text(security.displayName)
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+
+                    if isEnterprise {
+                        TextField(
+                            NSLocalizedString("wifi.username", comment: ""),
+                            text: $username
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .username)
+                        .accessibilityIdentifier("wifi-username")
+
+                        SecureField(
+                            NSLocalizedString("wifi.password", comment: ""),
+                            text: $password
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .password)
+                        .accessibilityIdentifier("wifi-password")
+
+                        Picker(
+                            NSLocalizedString("wifi.identity", comment: ""),
+                            selection: $selectedIdentityIndex
+                        ) {
+                            Text(NSLocalizedString("wifi.identity.none", comment: ""))
+                                .tag(-1)
+
+                            ForEach(Array(identities.enumerated()), id: \.offset) { index, identity in
+                                Text(identity.title)
+                                    .tag(index)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    } else if requiresPassword {
+                        SecureField(
+                            NSLocalizedString("wifi.password", comment: ""),
+                            text: $password
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .password)
+                        .accessibilityIdentifier("wifi-password")
+                    }
+
+                    Toggle(
+                        NSLocalizedString("wifi.remember", comment: ""),
+                        isOn: $rememberNetwork
+                    )
+                    .toggleStyle(.checkbox)
+
+                    if case let .failed(error) = controls.networkOperationState {
+                        Label(
+                            NSLocalizedString(error.localizationKey, comment: ""),
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
                         .font(.system(size: 11))
-                        .foregroundStyle(DuoStatusStyle.muted)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            if isEnterprise {
-                TextField(
-                    NSLocalizedString("wifi.username", comment: ""),
-                    text: $username
-                )
-                .textFieldStyle(.roundedBorder)
-                .focused($focusedField, equals: .username)
-                .accessibilityIdentifier("wifi-username")
-
-                SecureField(
-                    NSLocalizedString("wifi.password", comment: ""),
-                    text: $password
-                )
-                .textFieldStyle(.roundedBorder)
-                .focused($focusedField, equals: .password)
-                .accessibilityIdentifier("wifi-password")
-
-                Picker(
-                    NSLocalizedString("wifi.identity", comment: ""),
-                    selection: $selectedIdentityIndex
-                ) {
-                    Text(NSLocalizedString("wifi.identity.none", comment: ""))
-                        .tag(-1)
-
-                    ForEach(Array(identities.enumerated()), id: \.offset) { index, identity in
-                        Text(identity.title)
-                            .tag(index)
+                        .foregroundStyle(.red)
                     }
                 }
-                .pickerStyle(.menu)
-            } else if requiresPassword {
-                SecureField(
-                    NSLocalizedString("wifi.password", comment: ""),
-                    text: $password
-                )
-                .textFieldStyle(.roundedBorder)
-                .focused($focusedField, equals: .password)
-                .accessibilityIdentifier("wifi-password")
-            }
-
-            Toggle(
-                NSLocalizedString("wifi.remember", comment: ""),
-                isOn: $rememberNetwork
-            )
-            .toggleStyle(.checkbox)
-
-            if case let .failed(error) = controls.networkOperationState {
-                Text(NSLocalizedString(error.localizationKey, comment: ""))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
             }
 
             HStack {
@@ -141,8 +141,6 @@ struct WiFiCredentialView: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .padding(18)
-        .frame(width: 320)
         .task {
             identities = KeychainIdentityStore.identities()
             focusFirstField()

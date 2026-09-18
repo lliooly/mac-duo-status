@@ -7,11 +7,13 @@
 
 "section.battery" = "Battery";
 "section.network" = "Network";
+"section.system" = "System";
 "section.system-health" = "System Health";
 
 "status.local-only" = "Local Mac status";
 "status.unavailable" = "Temporarily unavailable";
 "status.updated" = "Updated";
+"status.just-now" = "just now";
 
 "battery.charge" = "Charge";
 "battery.charging" = "Charging";
@@ -50,6 +52,7 @@
 "network.kind.ethernet" = "Ethernet";
 "network.kind.hotspot" = "Personal Hotspot";
 "network.kind.disconnected" = "Not Connected";
+"network.connected" = "Connected";
 "network.switch" = "Switch Wi-Fi Network";
 
 "wifi.title" = "Wi-Fi";

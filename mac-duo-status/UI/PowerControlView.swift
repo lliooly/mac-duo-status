@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct PowerControlView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var controls: ControlCoordinator
     @EnvironmentObject private var statusStore: SystemStatusStore
 
@@ -60,25 +61,18 @@ struct PowerControlView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
-
-            StatusValueRow(
-                title: NSLocalizedString("power.active-mode", comment: ""),
-                value: localizedMode(status.activeMode),
-                showsDivider: false
+            PopoverPageHeader(
+                title: NSLocalizedString("power.title", comment: ""),
+                subtitle: localizedMode(status.activeMode),
+                onBack: onBack
             )
 
-            currentPowerSourceRow
+            powerSummaryCard
             energyModeControls
 
-            if !status.helperStatus.isAuthorized ||
-                availableModes.isEmpty ||
-                modeReadbackUnavailable {
-                batterySettingsFallback
+            DuoStatusCard {
+                PowerAuthorizationView()
             }
-
-            PowerAuthorizationView()
-                .padding(.top, 2)
         }
         .onAppear {
             statusStore.refreshNow()
@@ -88,45 +82,70 @@ struct PowerControlView: View {
         }
     }
 
-    private var currentPowerSourceRow: some View {
-        StatusValueRow(
-            title: NSLocalizedString("power.scope.title", comment: ""),
-            value: localizedScope(currentScope),
-            showsDivider: true
-        )
-    }
+    private var powerSummaryCard: some View {
+        DuoStatusCard {
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    Image(systemName: statusStore.snapshot.battery.isCharging == true
+                        ? "battery.100.bolt"
+                        : "battery.100")
+                        .font(.system(size: 22, weight: .regular))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(DuoStatusStyle.success, .primary)
+                        .frame(width: 28)
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
+                    Text(NSLocalizedString("power.active-mode", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+
+                    Spacer(minLength: 0)
+
+                    Text(localizedMode(status.activeMode))
+                        .font(.system(size: 13, weight: .semibold))
+                }
+
+                Divider()
+                    .overlay(DuoStatusStyle.divider)
+                    .padding(.vertical, 11)
+
+                StatusValueRow(
+                    title: NSLocalizedString("power.scope.title", comment: ""),
+                    value: localizedScope(currentScope)
+                )
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(NSLocalizedString("common.back", comment: ""))
-
-            Text(NSLocalizedString("power.title", comment: ""))
-                .font(.system(size: 16, weight: .semibold))
-
-            Spacer(minLength: 0)
         }
     }
 
     @ViewBuilder
     private var energyModeControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("power.modes", comment: ""))
-                .font(.system(size: 12, weight: .semibold))
+        DuoStatusCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gauge.with.dots.needle.33percent")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(DuoStatusStyle.accent)
 
-            if availableModes.isEmpty || modeReadbackUnavailable {
-                readOnlyModeRows
-            } else {
-                VStack(spacing: 2) {
-                    ForEach(availableModes) { mode in
-                        modeRow(mode, isSelected: currentMode == mode)
+                    Text(NSLocalizedString("power.modes", comment: ""))
+                        .font(.system(size: 13, weight: .semibold))
+                }
+
+                if availableModes.isEmpty || modeReadbackUnavailable {
+                    readOnlyModeRows
+                } else {
+                    VStack(spacing: 5) {
+                        ForEach(availableModes) { mode in
+                            modeRow(mode, isSelected: currentMode == mode)
+                        }
                     }
+                }
+
+                if !status.helperStatus.isAuthorized ||
+                    availableModes.isEmpty ||
+                    modeReadbackUnavailable {
+                    Divider()
+                        .overlay(DuoStatusStyle.divider)
+                        .padding(.top, 2)
+
+                    batterySettingsFallback
                 }
             }
         }
@@ -152,13 +171,13 @@ struct PowerControlView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: mode.systemImageName)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(isSelected ? .white : DuoStatusStyle.accent)
-                    .frame(width: 34, height: 34)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isSelected ? DuoStatusStyle.accent : DuoStatusStyle.muted)
+                    .frame(width: 30, height: 30)
                     .background(
                         isSelected
-                            ? DuoStatusStyle.accent
-                            : Color.primary.opacity(0.08),
+                            ? DuoStatusStyle.accent.opacity(0.13)
+                            : DuoStatusStyle.controlFill,
                         in: Circle()
                     )
 
@@ -170,15 +189,21 @@ struct PowerControlView: View {
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(DuoStatusStyle.accent)
                 }
             }
-            .padding(.vertical, 3)
+            .padding(.horizontal, 9)
+            .frame(minHeight: 40)
+            .background(
+                isSelected ? DuoStatusStyle.accent.opacity(0.07) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!canEditModes)
+        .animation(reduceMotion ? nil : DuoStatusStyle.quickAnimation, value: isSelected)
         .accessibilityIdentifier("power-mode-\(mode.rawValue)")
     }
 
@@ -200,6 +225,7 @@ struct PowerControlView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(DuoStatusStyle.muted)
             }
+            .padding(.top, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

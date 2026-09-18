@@ -6,9 +6,11 @@
 import SwiftUI
 
 struct HealthMetricSelector: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: HealthMetric
 
     @State private var hoveredMetric: HealthMetric?
+    @Namespace private var selectionAnimation
 
     init(selection: Binding<HealthMetric>) {
         self._selection = selection
@@ -20,29 +22,43 @@ struct HealthMetricSelector: View {
                 metricButton(for: metric)
             }
         }
-        .padding(2)
+        .padding(3)
         .background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+            DuoStatusStyle.controlFill,
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
         )
-        .frame(maxWidth: .infinity, minHeight: 30)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(DuoStatusStyle.cardStroke, lineWidth: 0.5)
+        }
+        .frame(maxWidth: .infinity, minHeight: 32)
     }
 
     private func metricButton(for metric: HealthMetric) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.16)) {
+            withAnimation(reduceMotion ? nil : DuoStatusStyle.quickAnimation) {
                 selection = metric
             }
         } label: {
             Text(metric.localizedTitle)
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 11, weight: selection == metric ? .semibold : .medium))
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .foregroundStyle(selection == metric ? .white : .primary)
-                .frame(maxWidth: .infinity, minHeight: 26)
+                .minimumScaleFactor(0.76)
+                .foregroundStyle(selection == metric ? .primary : DuoStatusStyle.muted)
+                .frame(maxWidth: .infinity, minHeight: 28)
                 .background {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(backgroundColor(for: metric))
+                    if selection == metric {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
+                            .shadow(color: Color.black.opacity(0.10), radius: 2, y: 1)
+                            .matchedGeometryEffect(
+                                id: "health-metric-selection",
+                                in: selectionAnimation
+                            )
+                    } else if hoveredMetric == metric {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(0.05))
+                    }
                 }
                 .contentShape(Rectangle())
         }
@@ -52,17 +68,5 @@ struct HealthMetricSelector: View {
         }
         .accessibilityIdentifier("health-metric-\(metric.rawValue)")
         .accessibilityAddTraits(selection == metric ? .isSelected : [])
-    }
-
-    private func backgroundColor(for metric: HealthMetric) -> Color {
-        if selection == metric {
-            return DuoStatusStyle.accent
-        }
-
-        if hoveredMetric == metric {
-            return Color.primary.opacity(0.08)
-        }
-
-        return .clear
     }
 }

@@ -7,11 +7,13 @@
 
 "section.battery" = "电池";
 "section.network" = "网络";
+"section.system" = "系统";
 "section.system-health" = "系统健康";
 
 "status.local-only" = "本机状态";
 "status.unavailable" = "暂不可用";
 "status.updated" = "更新于";
+"status.just-now" = "刚刚";
 
 "battery.charge" = "当前电量";
 "battery.charging" = "正在充电";
@@ -50,6 +52,7 @@
 "network.kind.ethernet" = "有线网络";
 "network.kind.hotspot" = "个人热点";
 "network.kind.disconnected" = "未连接";
+"network.connected" = "已连接";
 "network.switch" = "切换 Wi-Fi 网络";
 
 "wifi.title" = "Wi-Fi";
