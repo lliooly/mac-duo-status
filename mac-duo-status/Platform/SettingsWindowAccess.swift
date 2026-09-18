@@ -67,7 +67,7 @@ enum SettingsWindowAccess {
         if let settingsURL = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: "com.apple.systempreferences"
         ) {
-            _ = NSWorkspace.shared.openApplication(
+            NSWorkspace.shared.openApplication(
                 at: settingsURL,
                 configuration: NSWorkspace.OpenConfiguration()
             )

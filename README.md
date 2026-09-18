@@ -44,6 +44,7 @@ Duo Status 是一个轻量的 macOS 菜单栏状态聚合工具，用一个组�
 - [产品规格](docs/product-spec.md)
 - [架构说明](docs/architecture.md)
 - [测试说明](docs/testing.md)
+- [发布说明](docs/releasing.md)
 - [合并控制版本设计](docs/superpowers/specs/2026-09-15-merged-control-version-design.md)
 - [合并控制版本实现计划](docs/superpowers/plans/2026-09-15-merged-control-version-plan.md)
 - [能源模式 pmset 后端设计](docs/superpowers/specs/2026-09-18-energy-mode-pmset-backend-design.md)
@@ -56,6 +57,10 @@ Duo Status 是一个轻量的 macOS 菜单栏状态聚合工具，用一个组�
 4. 在 Apple silicon Mac、macOS 13 或更高版本上运行。
 
 命令行构建需要完整 Xcode 和对应的 macOS SDK。可使用 `xcodebuild -project mac-duo-status.xcodeproj -scheme mac-duo-status -destination 'platform=macOS' build`。
+
+## 发布
+
+当前发布准备以 Apple silicon 的无签名 zip 包为目标。无签名包可以用于个人测试或手动分发，但首次打开可能受到 macOS 安全提示影响；电源和已保存 Wi-Fi 控制依赖签名且获授权的 helper，未满足条件时应用会保持只读降级。完整流程见[发布说明](docs/releasing.md)。
 
 ## 隐私和权限
 

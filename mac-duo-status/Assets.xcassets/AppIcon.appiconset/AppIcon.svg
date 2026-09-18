@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="120" y1="80" x2="900" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#18253D"/>
+      <stop offset="1" stop-color="#0A1020"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="240" y1="210" x2="540" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8BE9FF"/>
+      <stop offset="1" stop-color="#37B7D9"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="480" y1="240" x2="800" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C1B3FF"/>
+      <stop offset="1" stop-color="#7564E8"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="224" fill="url(#background)"/>
+  <g fill="none" stroke-linecap="round" filter="url(#shadow)">
+    <circle cx="416" cy="456" r="226" stroke="url(#cyan)" stroke-width="76"/>
+    <circle cx="608" cy="456" r="226" stroke="url(#violet)" stroke-width="76"/>
+  </g>
+  <g fill="#F4F8FF">
+    <circle cx="328" cy="786" r="22"/>
+    <circle cx="450" cy="786" r="22" fill="#55D6EF"/>
+    <circle cx="572" cy="786" r="22" fill="#9C8BFF"/>
+    <circle cx="694" cy="786" r="22" fill="#7FE0B0"/>
+  </g>
+</svg>

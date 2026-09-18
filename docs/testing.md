@@ -161,9 +161,9 @@ Wi-Fi 控制需要在受控测试网络上验证；不在开发机上随意切�
 | 权限 | 主应用不以 root 运行；电源辅助进程按需签名和授权 |
 | 数据来源 | 本机 Apple 公开 API；能源模式由 helper 固定参数读取 `/usr/bin/pmset` |
 
-兼容性验证需要完整 Xcode 和对应 SDK。当前工程已使用 Xcode 27 在 macOS destination 上通过应用构建和 `build-for-testing` 编译验证，单元测试也已在完整 Xcode 的 macOS destination 上执行通过。受限沙箱内直接连接 Xcode 的 `testmanagerd`/CoreSimulator 服务仍不可用；真实 Provider 仍需在 Apple silicon 设备上完成硬件状态验证。
+兼容性验证需要完整 Xcode 和对应 SDK。当前工程已使用 Xcode 27 在 macOS destination 上通过应用构建和默认 Scheme 测试；默认测试 action 只包含可重复的单元测试。受限沙箱内直接连接 Xcode 的 `testmanagerd`/CoreSimulator 服务仍不可用；真实 Provider 仍需在 Apple silicon 设备上完成硬件状态验证。
 
-本机执行完整 UI test target 时，UI runner 在建立连接前被系统以 `signal kill` 终止，未进入任何 UI 用例；因此该结果不作为断言失败处理，菜单栏和弹出面板仍需在可用的 UI runner 或实际设备上完成手动验收。
+菜单栏 UI target 仍保留在工程中，但当前 macOS UI runner 无法可靠终止 `LSUIElement` 菜单栏应用，专门执行该 target 会在系统清理阶段超时。它不作为默认发布门禁；菜单栏和弹出面板继续按下方顺序进行手动验收。
 
 ## 5. 手动验收顺序
 
