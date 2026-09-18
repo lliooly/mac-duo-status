@@ -24,6 +24,7 @@
 "power.active-mode" = "Active Power Mode";
 "power.charge-limit" = "Charge Limit";
 "power.current-limit" = "Current Limit";
+"power.current-mode" = "Current Mode";
 "power.open-control" = "Power Controls";
 "power.open-system-settings" = "Open Energy Mode in System Settings";
 "power.title" = "Power Controls";

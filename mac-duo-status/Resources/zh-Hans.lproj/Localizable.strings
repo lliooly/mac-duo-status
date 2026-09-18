@@ -24,6 +24,7 @@
 "power.active-mode" = "当前能源模式";
 "power.charge-limit" = "充电上限";
 "power.current-limit" = "当前上限";
+"power.current-mode" = "当前模式";
 "power.open-control" = "电源控制";
 "power.open-system-settings" = "在系统设置中打开能源模式";
 "power.title" = "电源控制";

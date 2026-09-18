@@ -12,16 +12,9 @@ struct PowerControlView: View {
     let onBack: () -> Void
 
     @State private var selectedChargeLimit = 80.0
-    @State private var selectedScope: PowerSourceScope = .battery
 
     private var status: PowerPolicyStatus {
         statusStore.snapshot.powerPolicy
-    }
-
-    private var availableScopes: [PowerSourceScope] {
-        [.battery, .powerAdapter].filter {
-            status.capabilities.energyModeScopes.contains($0)
-        }
     }
 
     private var availableModes: [PowerMode] {
@@ -30,15 +23,7 @@ struct PowerControlView: View {
         }
     }
 
-    private var selectedMode: PowerMode? {
-        mode(for: selectedScope)
-    }
-
-    private var preferredScope: PowerSourceScope {
-        currentPowerSourceScope ?? .battery
-    }
-
-    private var currentPowerSourceScope: PowerSourceScope? {
+    private var currentScope: PowerSourceScope? {
         switch statusStore.snapshot.battery.powerSource {
         case .battery:
             return .battery
@@ -49,19 +34,29 @@ struct PowerControlView: View {
         }
     }
 
+    private var currentMode: PowerMode? {
+        currentScope.flatMap(mode(for:))
+    }
+
     private var modeReadbackUnavailable: Bool {
-        guard !availableScopes.isEmpty else {
+        guard let currentScope,
+              status.capabilities.energyModeScopes.contains(currentScope)
+        else {
             return true
         }
 
-        return availableScopes.contains { mode(for: $0) == nil }
+        return currentMode == nil
     }
 
     private var canEditModes: Bool {
-        status.helperStatus.isAuthorized &&
-            !availableScopes.isEmpty &&
+        guard let currentScope else {
+            return false
+        }
+
+        return status.helperStatus.isAuthorized &&
+            status.capabilities.energyModeScopes.contains(currentScope) &&
             !availableModes.isEmpty &&
-            selectedMode != nil &&
+            currentMode != nil &&
             !controls.powerOperationState.isPending
     }
 
@@ -72,9 +67,10 @@ struct PowerControlView: View {
             StatusValueRow(
                 title: NSLocalizedString("power.active-mode", comment: ""),
                 value: localizedMode(status.activeMode),
-                showsDivider: true
+                showsDivider: false
             )
 
+            currentPowerSourceRow
             energyModeControls
 
             chargeLimitControls
@@ -90,28 +86,20 @@ struct PowerControlView: View {
         }
         .onAppear {
             selectedChargeLimit = Double(status.chargeLimit ?? 80)
-            selectedScope = availableScopes.contains(preferredScope)
-                ? preferredScope
-                : (availableScopes.first ?? preferredScope)
         }
         .onChange(of: status.chargeLimit) { newValue in
             if let newValue {
                 selectedChargeLimit = Double(newValue)
             }
         }
-        .onChange(of: statusStore.snapshot.battery.powerSource) { _ in
-            synchronizeSelectedScope()
-        }
     }
 
-    private func synchronizeSelectedScope() {
-        guard let currentPowerSourceScope,
-              availableScopes.contains(currentPowerSourceScope)
-        else {
-            return
-        }
-
-        selectedScope = currentPowerSourceScope
+    private var currentPowerSourceRow: some View {
+        StatusValueRow(
+            title: NSLocalizedString("power.scope.title", comment: ""),
+            value: localizedScope(currentScope),
+            showsDivider: true
+        )
     }
 
     private var header: some View {
@@ -138,24 +126,12 @@ struct PowerControlView: View {
             Text(NSLocalizedString("power.modes", comment: ""))
                 .font(.system(size: 12, weight: .semibold))
 
-            if availableModes.isEmpty || availableScopes.isEmpty {
+            if availableModes.isEmpty || modeReadbackUnavailable {
                 readOnlyModeRows
             } else {
-                scopeSelector
-
-                if selectedMode == nil {
-                    StatusValueRow(
-                        title: NSLocalizedString(
-                            selectedScope.localizationKey,
-                            comment: ""
-                        ),
-                        value: NSLocalizedString("status.unavailable", comment: "")
-                    )
-                } else {
-                    VStack(spacing: 2) {
-                        ForEach(availableModes) { mode in
-                            modeRow(mode, isSelected: selectedMode == mode)
-                        }
+                VStack(spacing: 2) {
+                    ForEach(availableModes) { mode in
+                        modeRow(mode, isSelected: currentMode == mode)
                     }
                 }
             }
@@ -163,50 +139,21 @@ struct PowerControlView: View {
     }
 
     @ViewBuilder
-    private var scopeSelector: some View {
-        if availableScopes.count > 1 {
-            Picker(
-                NSLocalizedString("power.scope.title", comment: ""),
-                selection: $selectedScope
-            ) {
-                ForEach(availableScopes) { scope in
-                    Text(NSLocalizedString(scope.localizationKey, comment: ""))
-                        .tag(scope)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("power-scope-picker")
-        } else if let scope = availableScopes.first {
-            HStack(spacing: 6) {
-                Image(systemName: scope.systemImageName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(DuoStatusStyle.muted)
-
-                Text(NSLocalizedString(scope.localizationKey, comment: ""))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(DuoStatusStyle.muted)
-            }
-        }
-    }
-
-    @ViewBuilder
     private var readOnlyModeRows: some View {
-        let scopes = availableScopes.isEmpty
-            ? PowerSourceScope.allCases
-            : availableScopes
-
-        ForEach(scopes) { scope in
-            StatusValueRow(
-                title: NSLocalizedString(scope.localizationKey, comment: ""),
-                value: localizedMode(mode(for: scope))
-            )
-        }
+        StatusValueRow(
+            title: NSLocalizedString("power.current-mode", comment: ""),
+            value: localizedMode(modeReadbackUnavailable ? nil : currentMode)
+        )
     }
 
     private func modeRow(_ mode: PowerMode, isSelected: Bool) -> some View {
         Button {
+            guard let currentScope else {
+                return
+            }
+
             Task {
-                await controls.setPowerMode(mode, scope: selectedScope)
+                await controls.setPowerMode(mode, scope: currentScope)
             }
         } label: {
             HStack(spacing: 10) {
@@ -320,6 +267,14 @@ struct PowerControlView: View {
 
         return NSLocalizedString(mode.localizationKey, comment: "")
     }
+
+    private func localizedScope(_ scope: PowerSourceScope?) -> String {
+        guard let scope else {
+            return NSLocalizedString("status.unavailable", comment: "")
+        }
+
+        return NSLocalizedString(scope.localizationKey, comment: "")
+    }
 }
 
 private extension PowerMode {
@@ -331,17 +286,6 @@ private extension PowerMode {
             return "battery.25"
         case .highPower:
             return "bolt.fill"
-        }
-    }
-}
-
-private extension PowerSourceScope {
-    var systemImageName: String {
-        switch self {
-        case .battery:
-            return "battery.75"
-        case .powerAdapter:
-            return "powerplug"
         }
     }
 }
