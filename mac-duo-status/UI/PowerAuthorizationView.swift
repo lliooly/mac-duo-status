@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct PowerAuthorizationView: View {
+    @EnvironmentObject private var localization: LocalizationStore
     @EnvironmentObject private var controls: ControlCoordinator
 
     var compact = false
@@ -17,7 +18,7 @@ struct PowerAuthorizationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 6 : 10) {
             if !compact {
-                Text(NSLocalizedString("power.advanced", comment: ""))
+                Text(localization.string("power.advanced"))
                     .font(.system(size: 12, weight: .semibold))
             }
 
@@ -29,14 +30,14 @@ struct PowerAuthorizationView: View {
                             : DuoStatusStyle.muted
                     )
 
-                Text(helperStatus.localizedTitle)
+                Text(localization.string(helperStatus.localizationKey))
                     .font(.system(size: 11))
                     .foregroundStyle(DuoStatusStyle.muted)
 
                 Spacer(minLength: 0)
 
                 if helperStatus == .authorized {
-                    Button(NSLocalizedString("power.disable", comment: "")) {
+                    Button(localization.string("power.disable")) {
                         Task {
                             await controls.unregisterHelper()
                         }
@@ -46,9 +47,8 @@ struct PowerAuthorizationView: View {
                     .disabled(controls.powerOperationState.isPending)
                 } else {
                     Button(
-                        NSLocalizedString(
-                            helperStatus.isRepairable ? "power.repair" : "power.enable",
-                            comment: ""
+                        localization.string(
+                            helperStatus.isRepairable ? "power.repair" : "power.enable"
                         )
                     ) {
                         Task {
@@ -62,7 +62,7 @@ struct PowerAuthorizationView: View {
             }
 
             if case let .failed(error) = controls.powerOperationState {
-                Text(NSLocalizedString(error.localizationKey, comment: ""))
+                Text(localization.string(error.localizationKey))
                     .font(.system(size: 11))
                     .foregroundStyle(.red)
             }
@@ -78,18 +78,18 @@ private extension HelperStatus {
         return false
     }
 
-    var localizedTitle: String {
+    var localizationKey: String {
         switch self {
         case .notInstalled:
-            return NSLocalizedString("power.helper.not-installed", comment: "")
+            return "power.helper.not-installed"
         case .requiresApproval:
-            return NSLocalizedString("power.helper.requires-approval", comment: "")
+            return "power.helper.requires-approval"
         case .authorized:
-            return NSLocalizedString("power.helper.authorized", comment: "")
+            return "power.helper.authorized"
         case .unavailable:
-            return NSLocalizedString("power.helper.unavailable", comment: "")
+            return "power.helper.unavailable"
         case .failed:
-            return NSLocalizedString("power.helper.failed", comment: "")
+            return "power.helper.failed"
         }
     }
 }

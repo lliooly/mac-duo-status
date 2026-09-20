@@ -79,8 +79,12 @@
 "control.error.failed" = "Operation failed";
 
 "settings.general" = "General";
+"settings.language" = "Language";
 "settings.open" = "Open Settings";
 "settings.launch-at-login" = "Launch at login";
+"settings.processing" = "Updating…";
 "settings.colored-icon" = "Use colored icon";
 "settings.indicators" = "Indicators";
 "settings.default-sections" = "Default expanded sections";
+
+"language.system" = "System Default";

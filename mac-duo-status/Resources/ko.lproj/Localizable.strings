@@ -1,0 +1,90 @@
+"health.metric" = "지표";
+"health.metric.cpu" = "CPU 사용량";
+"health.metric.thermal" = "열 상태";
+"health.metric.load" = "시스템 부하";
+"health.score" = "상태 점수";
+"health.dots" = "상태 점";
+
+"section.battery" = "배터리";
+"section.network" = "네트워크";
+"section.system" = "시스템";
+"section.system-health" = "시스템 상태";
+
+"status.local-only" = "Mac 로컬 상태";
+"status.unavailable" = "일시적으로 사용할 수 없음";
+"status.updated" = "업데이트됨";
+"status.just-now" = "방금";
+
+"battery.charge" = "충전량";
+"battery.charging" = "충전 중";
+"battery.power-source" = "전원";
+"battery.power-source.battery" = "배터리";
+"battery.power-source.adapter" = "전원 어댑터";
+"battery.low-power-mode" = "저전력 모드";
+"battery.no-built-in" = "내장 배터리 없음";
+
+"power.active-mode" = "현재 전원 모드";
+"power.current-mode" = "현재 모드";
+"power.open-control" = "전원 제어";
+"power.open-system-settings" = "시스템 설정에서 에너지 모드 열기";
+"power.title" = "전원 제어";
+"power.advanced" = "고급 전원 제어";
+"power.modes" = "전원 모드";
+"power.scope.title" = "전원";
+"power.scope.battery" = "배터리";
+"power.scope.adapter" = "전원 어댑터";
+"power.mode.automatic" = "자동";
+"power.mode.low-power" = "저전력";
+"power.mode.high-power" = "고전력";
+"power.enable" = "활성화";
+"power.repair" = "복구";
+"power.disable" = "비활성화";
+"power.helper.not-installed" = "도우미가 활성화되지 않음";
+"power.helper.requires-approval" = "승인 대기 중";
+"power.helper.authorized" = "승인됨";
+"power.helper.unavailable" = "도우미를 사용할 수 없음";
+"power.helper.failed" = "도우미 오류";
+
+"network.type" = "유형";
+"network.name" = "네트워크";
+"network.signal" = "신호";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "이더넷";
+"network.kind.hotspot" = "개인용 핫스팟";
+"network.kind.disconnected" = "연결되지 않음";
+"network.connected" = "연결됨";
+
+"wifi.title" = "Wi-Fi";
+"wifi.settings" = "Wi-Fi 설정…";
+
+"health.load.one-minute" = "1분 부하";
+"health.thermal.nominal" = "정상";
+"health.thermal.fair" = "양호";
+"health.thermal.serious" = "심각";
+"health.thermal.critical" = "위험";
+
+"common.yes" = "예";
+"common.no" = "아니요";
+"common.quit" = "종료";
+"common.back" = "뒤로";
+"common.cancel" = "취소";
+"common.apply" = "적용";
+
+"control.error.authorization-required" = "승인이 필요함";
+"control.error.helper-unavailable" = "고급 제어를 사용할 수 없음";
+"control.error.operation-timeout" = "작업이 완료되었지만 상태를 확인하지 못함";
+"control.error.write-unconfirmed" = "쓰기가 완료되었지만 상태를 확인하지 못함";
+"control.error.cancelled" = "작업이 취소됨";
+"control.error.temporarily-unavailable" = "일시적으로 사용할 수 없음";
+"control.error.failed" = "작업 실패";
+
+"settings.general" = "일반";
+"settings.language" = "언어";
+"settings.open" = "설정 열기";
+"settings.launch-at-login" = "로그인 시 실행";
+"settings.processing" = "업데이트 중…";
+"settings.colored-icon" = "색상 아이콘 사용";
+"settings.indicators" = "지표";
+"settings.default-sections" = "기본으로 펼칠 섹션";
+
+"language.system" = "시스템 기본값";

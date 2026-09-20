@@ -79,8 +79,12 @@
 "control.error.failed" = "操作失败";
 
 "settings.general" = "通用";
+"settings.language" = "语言";
 "settings.open" = "打开设置";
 "settings.launch-at-login" = "开机启动";
+"settings.processing" = "处理中…";
 "settings.colored-icon" = "使用彩色图标";
 "settings.indicators" = "指示器";
 "settings.default-sections" = "默认展开区域";
+
+"language.system" = "跟随系统";

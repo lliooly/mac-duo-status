@@ -46,9 +46,6 @@ enum HealthMetric: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var localizedTitle: String {
-        NSLocalizedString(localizationKey, comment: "")
-    }
 }
 
 enum StatusSection: String, CaseIterable, Identifiable, Sendable {
@@ -67,10 +64,6 @@ enum StatusSection: String, CaseIterable, Identifiable, Sendable {
         case .systemHealth:
             return "section.system-health"
         }
-    }
-
-    var localizedTitle: String {
-        NSLocalizedString(localizationKey, comment: "")
     }
 
     var systemImageName: String {

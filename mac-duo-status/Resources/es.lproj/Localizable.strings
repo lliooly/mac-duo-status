@@ -1,0 +1,90 @@
+"health.metric" = "Indicador";
+"health.metric.cpu" = "Uso de CPU";
+"health.metric.thermal" = "Estado térmico";
+"health.metric.load" = "Carga del sistema";
+"health.score" = "Puntuación de salud";
+"health.dots" = "Puntos de salud";
+
+"section.battery" = "Batería";
+"section.network" = "Red";
+"section.system" = "Sistema";
+"section.system-health" = "Estado del sistema";
+
+"status.local-only" = "Estado local del Mac";
+"status.unavailable" = "No disponible temporalmente";
+"status.updated" = "Actualizado";
+"status.just-now" = "justo ahora";
+
+"battery.charge" = "Carga";
+"battery.charging" = "Cargando";
+"battery.power-source" = "Fuente de alimentación";
+"battery.power-source.battery" = "Batería";
+"battery.power-source.adapter" = "Adaptador de corriente";
+"battery.low-power-mode" = "Modo de bajo consumo";
+"battery.no-built-in" = "Sin batería integrada";
+
+"power.active-mode" = "Modo de energía activo";
+"power.current-mode" = "Modo actual";
+"power.open-control" = "Controles de energía";
+"power.open-system-settings" = "Abrir el modo de energía en Ajustes del Sistema";
+"power.title" = "Controles de energía";
+"power.advanced" = "Controles de energía avanzados";
+"power.modes" = "Modos de energía";
+"power.scope.title" = "Fuente de alimentación";
+"power.scope.battery" = "Batería";
+"power.scope.adapter" = "Adaptador de corriente";
+"power.mode.automatic" = "Automático";
+"power.mode.low-power" = "Bajo consumo";
+"power.mode.high-power" = "Alto rendimiento";
+"power.enable" = "Activar";
+"power.repair" = "Reparar";
+"power.disable" = "Desactivar";
+"power.helper.not-installed" = "El asistente no está activado";
+"power.helper.requires-approval" = "Esperando aprobación";
+"power.helper.authorized" = "Autorizado";
+"power.helper.unavailable" = "El asistente no está disponible";
+"power.helper.failed" = "El asistente ha fallado";
+
+"network.type" = "Tipo";
+"network.name" = "Red";
+"network.signal" = "Señal";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "Ethernet";
+"network.kind.hotspot" = "Punto de acceso personal";
+"network.kind.disconnected" = "No conectado";
+"network.connected" = "Conectado";
+
+"wifi.title" = "Wi-Fi";
+"wifi.settings" = "Ajustes de Wi-Fi…";
+
+"health.load.one-minute" = "Carga de 1 minuto";
+"health.thermal.nominal" = "Normal";
+"health.thermal.fair" = "Aceptable";
+"health.thermal.serious" = "Grave";
+"health.thermal.critical" = "Crítico";
+
+"common.yes" = "Sí";
+"common.no" = "No";
+"common.quit" = "Salir";
+"common.back" = "Atrás";
+"common.cancel" = "Cancelar";
+"common.apply" = "Aplicar";
+
+"control.error.authorization-required" = "Se requiere autorización";
+"control.error.helper-unavailable" = "Los controles avanzados no están disponibles";
+"control.error.operation-timeout" = "La operación terminó, pero no se confirmó el estado";
+"control.error.write-unconfirmed" = "La escritura terminó, pero no se confirmó el estado";
+"control.error.cancelled" = "Operación cancelada";
+"control.error.temporarily-unavailable" = "No disponible temporalmente";
+"control.error.failed" = "La operación ha fallado";
+
+"settings.general" = "General";
+"settings.language" = "Idioma";
+"settings.open" = "Abrir ajustes";
+"settings.launch-at-login" = "Abrir al iniciar sesión";
+"settings.processing" = "Actualizando…";
+"settings.colored-icon" = "Usar icono en color";
+"settings.indicators" = "Indicadores";
+"settings.default-sections" = "Secciones expandidas por defecto";
+
+"language.system" = "Predeterminado del sistema";

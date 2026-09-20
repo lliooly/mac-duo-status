@@ -1,0 +1,90 @@
+"health.metric" = "Indicateur";
+"health.metric.cpu" = "Utilisation du processeur";
+"health.metric.thermal" = "État thermique";
+"health.metric.load" = "Charge du système";
+"health.score" = "Indice de santé";
+"health.dots" = "Points de santé";
+
+"section.battery" = "Batterie";
+"section.network" = "Réseau";
+"section.system" = "Système";
+"section.system-health" = "État du système";
+
+"status.local-only" = "État local du Mac";
+"status.unavailable" = "Temporairement indisponible";
+"status.updated" = "Mis à jour";
+"status.just-now" = "à l’instant";
+
+"battery.charge" = "Charge";
+"battery.charging" = "En charge";
+"battery.power-source" = "Source d’alimentation";
+"battery.power-source.battery" = "Batterie";
+"battery.power-source.adapter" = "Adaptateur secteur";
+"battery.low-power-mode" = "Mode économie d’énergie";
+"battery.no-built-in" = "Pas de batterie intégrée";
+
+"power.active-mode" = "Mode d’alimentation actif";
+"power.current-mode" = "Mode actuel";
+"power.open-control" = "Commandes d’alimentation";
+"power.open-system-settings" = "Ouvrir le mode d’alimentation dans Réglages Système";
+"power.title" = "Commandes d’alimentation";
+"power.advanced" = "Commandes d’alimentation avancées";
+"power.modes" = "Modes d’alimentation";
+"power.scope.title" = "Source d’alimentation";
+"power.scope.battery" = "Batterie";
+"power.scope.adapter" = "Adaptateur secteur";
+"power.mode.automatic" = "Automatique";
+"power.mode.low-power" = "Économie d’énergie";
+"power.mode.high-power" = "Hautes performances";
+"power.enable" = "Activer";
+"power.repair" = "Réparer";
+"power.disable" = "Désactiver";
+"power.helper.not-installed" = "L’assistant n’est pas activé";
+"power.helper.requires-approval" = "En attente d’approbation";
+"power.helper.authorized" = "Autorisé";
+"power.helper.unavailable" = "Assistant indisponible";
+"power.helper.failed" = "Échec de l’assistant";
+
+"network.type" = "Type";
+"network.name" = "Réseau";
+"network.signal" = "Signal";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "Ethernet";
+"network.kind.hotspot" = "Partage de connexion";
+"network.kind.disconnected" = "Non connecté";
+"network.connected" = "Connecté";
+
+"wifi.title" = "Wi-Fi";
+"wifi.settings" = "Réglages Wi-Fi…";
+
+"health.load.one-minute" = "Charge sur 1 minute";
+"health.thermal.nominal" = "Normal";
+"health.thermal.fair" = "Correct";
+"health.thermal.serious" = "Sérieux";
+"health.thermal.critical" = "Critique";
+
+"common.yes" = "Oui";
+"common.no" = "Non";
+"common.quit" = "Quitter";
+"common.back" = "Retour";
+"common.cancel" = "Annuler";
+"common.apply" = "Appliquer";
+
+"control.error.authorization-required" = "Autorisation requise";
+"control.error.helper-unavailable" = "Les commandes avancées sont indisponibles";
+"control.error.operation-timeout" = "L’opération est terminée, mais l’état n’a pas été confirmé";
+"control.error.write-unconfirmed" = "L’écriture est terminée, mais l’état n’a pas été confirmé";
+"control.error.cancelled" = "Opération annulée";
+"control.error.temporarily-unavailable" = "Temporairement indisponible";
+"control.error.failed" = "Échec de l’opération";
+
+"settings.general" = "Général";
+"settings.language" = "Langue";
+"settings.open" = "Ouvrir les réglages";
+"settings.launch-at-login" = "Ouvrir à la connexion";
+"settings.processing" = "Mise à jour…";
+"settings.colored-icon" = "Utiliser l’icône en couleur";
+"settings.indicators" = "Indicateurs";
+"settings.default-sections" = "Sections développées par défaut";
+
+"language.system" = "Par défaut du système";

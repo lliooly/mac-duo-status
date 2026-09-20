@@ -1,0 +1,90 @@
+"health.metric" = "指標";
+"health.metric.cpu" = "CPU 使用率";
+"health.metric.thermal" = "温度状態";
+"health.metric.load" = "システム負荷";
+"health.score" = "ヘルススコア";
+"health.dots" = "ヘルスドット";
+
+"section.battery" = "バッテリー";
+"section.network" = "ネットワーク";
+"section.system" = "システム";
+"section.system-health" = "システムの健全性";
+
+"status.local-only" = "Mac のローカルステータス";
+"status.unavailable" = "一時的に利用できません";
+"status.updated" = "更新";
+"status.just-now" = "たった今";
+
+"battery.charge" = "充電残量";
+"battery.charging" = "充電中";
+"battery.power-source" = "電源";
+"battery.power-source.battery" = "バッテリー";
+"battery.power-source.adapter" = "電源アダプタ";
+"battery.low-power-mode" = "低電力モード";
+"battery.no-built-in" = "内蔵バッテリーなし";
+
+"power.active-mode" = "現在の電源モード";
+"power.current-mode" = "現在のモード";
+"power.open-control" = "電源コントロール";
+"power.open-system-settings" = "システム設定で電源モードを開く";
+"power.title" = "電源コントロール";
+"power.advanced" = "高度な電源コントロール";
+"power.modes" = "電源モード";
+"power.scope.title" = "電源";
+"power.scope.battery" = "バッテリー";
+"power.scope.adapter" = "電源アダプタ";
+"power.mode.automatic" = "自動";
+"power.mode.low-power" = "低電力";
+"power.mode.high-power" = "高電力";
+"power.enable" = "有効にする";
+"power.repair" = "修復";
+"power.disable" = "無効にする";
+"power.helper.not-installed" = "ヘルパーが有効になっていません";
+"power.helper.requires-approval" = "承認待ち";
+"power.helper.authorized" = "認証済み";
+"power.helper.unavailable" = "ヘルパーを利用できません";
+"power.helper.failed" = "ヘルパーに失敗しました";
+
+"network.type" = "種類";
+"network.name" = "ネットワーク";
+"network.signal" = "信号";
+"network.kind.wifi" = "Wi-Fi";
+"network.kind.ethernet" = "Ethernet";
+"network.kind.hotspot" = "インターネット共有";
+"network.kind.disconnected" = "未接続";
+"network.connected" = "接続済み";
+
+"wifi.title" = "Wi-Fi";
+"wifi.settings" = "Wi-Fi 設定…";
+
+"health.load.one-minute" = "1 分間の負荷";
+"health.thermal.nominal" = "正常";
+"health.thermal.fair" = "普通";
+"health.thermal.serious" = "重大";
+"health.thermal.critical" = "クリティカル";
+
+"common.yes" = "はい";
+"common.no" = "いいえ";
+"common.quit" = "終了";
+"common.back" = "戻る";
+"common.cancel" = "キャンセル";
+"common.apply" = "適用";
+
+"control.error.authorization-required" = "認証が必要です";
+"control.error.helper-unavailable" = "高度なコントロールを利用できません";
+"control.error.operation-timeout" = "操作は完了しましたが、状態を確認できませんでした";
+"control.error.write-unconfirmed" = "書き込みは完了しましたが、状態を確認できませんでした";
+"control.error.cancelled" = "操作がキャンセルされました";
+"control.error.temporarily-unavailable" = "一時的に利用できません";
+"control.error.failed" = "操作に失敗しました";
+
+"settings.general" = "一般";
+"settings.language" = "言語";
+"settings.open" = "設定を開く";
+"settings.launch-at-login" = "ログイン時に起動";
+"settings.processing" = "更新中…";
+"settings.colored-icon" = "カラーアイコンを使用";
+"settings.indicators" = "インジケータ";
+"settings.default-sections" = "デフォルトで展開するセクション";
+
+"language.system" = "システムのデフォルト";
