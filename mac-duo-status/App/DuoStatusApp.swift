@@ -8,24 +8,29 @@ import AppKit
 
 @main
 struct DuoStatusApp: App {
+    @StateObject private var localizationStore: LocalizationStore
     @StateObject private var preferencesStore: PreferencesStore
     @StateObject private var statusStore: SystemStatusStore
     @StateObject private var controlCoordinator: ControlCoordinator
 
     init() {
+        let localization = LocalizationStore()
         let preferences = PreferencesStore(
             launchAtLoginManager: SystemLaunchAtLoginManager()
         )
         let providers = ProviderContainer.live
+        let widgetStatusBridge = WidgetStatusBridge()
         let status = SystemStatusStore(
             preferences: preferences,
-            providers: providers
+            providers: providers,
+            widgetStatusBridge: widgetStatusBridge
         )
         let controls = ControlCoordinator(
             statusStore: status,
             powerControl: providers.powerControl
         )
 
+        _localizationStore = StateObject(wrappedValue: localization)
         _preferencesStore = StateObject(wrappedValue: preferences)
         _statusStore = StateObject(wrappedValue: status)
         _controlCoordinator = StateObject(wrappedValue: controls)
@@ -35,10 +40,14 @@ struct DuoStatusApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            StatusPopoverView()
+            StatusPopoverView(
+                batteryStatusStore: statusStore.batteryStatusStore,
+                powerPolicyStatusStore: statusStore.powerPolicyStatusStore
+            )
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
                 .environmentObject(controlCoordinator)
+                .environmentObject(localizationStore)
         } label: {
             CombinedStatusIcon(
                 snapshot: statusStore.snapshot,
@@ -50,7 +59,7 @@ struct DuoStatusApp: App {
 
                 Divider()
 
-                Button(NSLocalizedString("common.quit", comment: "")) {
+                Button(localizationStore.string("common.quit")) {
                     NSApplication.shared.terminate(nil)
                 }
             }
@@ -62,6 +71,7 @@ struct DuoStatusApp: App {
                 .environmentObject(statusStore)
                 .environmentObject(preferencesStore)
                 .environmentObject(controlCoordinator)
+                .environmentObject(localizationStore)
         }
     }
 
@@ -69,11 +79,11 @@ struct DuoStatusApp: App {
     private var settingsMenuItem: some View {
         if #available(macOS 14.0, *) {
             SettingsLink {
-                Text(NSLocalizedString("settings.open", comment: ""))
+                Text(localizationStore.string("settings.open"))
             }
             .buttonStyle(ActivateApplicationBeforeActionButtonStyle())
         } else {
-            Button(NSLocalizedString("settings.open", comment: "")) {
+            Button(localizationStore.string("settings.open")) {
                 SettingsWindowAccess.openLegacySettings()
             }
         }

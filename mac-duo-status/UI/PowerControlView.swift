@@ -7,13 +7,25 @@ import SwiftUI
 
 struct PowerControlView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var localization: LocalizationStore
     @EnvironmentObject private var controls: ControlCoordinator
-    @EnvironmentObject private var statusStore: SystemStatusStore
+    @ObservedObject private var batteryStatusStore: BatteryStatusStore
+    @ObservedObject private var powerPolicyStatusStore: PowerPolicyStatusStore
 
     let onBack: () -> Void
 
+    init(
+        batteryStatusStore: BatteryStatusStore,
+        powerPolicyStatusStore: PowerPolicyStatusStore,
+        onBack: @escaping () -> Void
+    ) {
+        _batteryStatusStore = ObservedObject(wrappedValue: batteryStatusStore)
+        _powerPolicyStatusStore = ObservedObject(wrappedValue: powerPolicyStatusStore)
+        self.onBack = onBack
+    }
+
     private var status: PowerPolicyStatus {
-        statusStore.snapshot.powerPolicy
+        powerPolicyStatusStore.status
     }
 
     private var availableModes: [PowerMode] {
@@ -23,7 +35,7 @@ struct PowerControlView: View {
     }
 
     private var currentScope: PowerSourceScope? {
-        switch statusStore.snapshot.battery.powerSource {
+        switch batteryStatusStore.status.powerSource {
         case .battery:
             return .battery
         case .powerAdapter:
@@ -62,7 +74,7 @@ struct PowerControlView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             PopoverPageHeader(
-                title: NSLocalizedString("power.title", comment: ""),
+                title: localization.string("power.title"),
                 subtitle: localizedMode(status.activeMode),
                 onBack: onBack
             )
@@ -74,19 +86,13 @@ struct PowerControlView: View {
                 PowerAuthorizationView()
             }
         }
-        .onAppear {
-            statusStore.refreshNow()
-        }
-        .onChange(of: statusStore.snapshot.battery.powerSource) { _ in
-            statusStore.refreshNow()
-        }
     }
 
     private var powerSummaryCard: some View {
         DuoStatusCard {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    Image(systemName: statusStore.snapshot.battery.isCharging == true
+                    Image(systemName: batteryStatusStore.status.isCharging == true
                         ? "battery.100.bolt"
                         : "battery.100")
                         .font(.system(size: 22, weight: .regular))
@@ -94,7 +100,7 @@ struct PowerControlView: View {
                         .foregroundStyle(DuoStatusStyle.success, .primary)
                         .frame(width: 28)
 
-                    Text(NSLocalizedString("power.active-mode", comment: ""))
+                    Text(localization.string("power.active-mode"))
                         .font(.system(size: 13, weight: .semibold))
 
                     Spacer(minLength: 0)
@@ -108,7 +114,7 @@ struct PowerControlView: View {
                     .padding(.vertical, 11)
 
                 StatusValueRow(
-                    title: NSLocalizedString("power.scope.title", comment: ""),
+                    title: localization.string("power.scope.title"),
                     value: localizedScope(currentScope)
                 )
             }
@@ -124,7 +130,7 @@ struct PowerControlView: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(DuoStatusStyle.accent)
 
-                    Text(NSLocalizedString("power.modes", comment: ""))
+                    Text(localization.string("power.modes"))
                         .font(.system(size: 13, weight: .semibold))
                 }
 
@@ -154,7 +160,7 @@ struct PowerControlView: View {
     @ViewBuilder
     private var readOnlyModeRows: some View {
         StatusValueRow(
-            title: NSLocalizedString("power.current-mode", comment: ""),
+            title: localization.string("power.current-mode"),
             value: localizedMode(modeReadbackUnavailable ? nil : currentMode)
         )
     }
@@ -181,7 +187,7 @@ struct PowerControlView: View {
                         in: Circle()
                     )
 
-                Text(NSLocalizedString(mode.localizationKey, comment: ""))
+                Text(localization.string(mode.localizationKey))
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.primary)
 
@@ -216,7 +222,7 @@ struct PowerControlView: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(DuoStatusStyle.muted)
 
-                Text(NSLocalizedString("power.open-system-settings", comment: ""))
+                Text(localization.string("power.open-system-settings"))
                     .font(.system(size: 11, weight: .medium))
 
                 Spacer(minLength: 0)
@@ -243,18 +249,18 @@ struct PowerControlView: View {
 
     private func localizedMode(_ mode: PowerMode?) -> String {
         guard let mode else {
-            return NSLocalizedString("status.unavailable", comment: "")
+            return localization.string("status.unavailable")
         }
 
-        return NSLocalizedString(mode.localizationKey, comment: "")
+        return localization.string(mode.localizationKey)
     }
 
     private func localizedScope(_ scope: PowerSourceScope?) -> String {
         guard let scope else {
-            return NSLocalizedString("status.unavailable", comment: "")
+            return localization.string("status.unavailable")
         }
 
-        return NSLocalizedString(scope.localizationKey, comment: "")
+        return localization.string(scope.localizationKey)
     }
 }
 

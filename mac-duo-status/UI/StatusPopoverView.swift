@@ -14,25 +14,26 @@ struct StatusPopoverView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @EnvironmentObject private var preferences: PreferencesStore
-    @EnvironmentObject private var statusStore: SystemStatusStore
-    @EnvironmentObject private var controls: ControlCoordinator
+    @EnvironmentObject private var localization: LocalizationStore
+
+    private let batteryStatusStore: BatteryStatusStore
+    private let powerPolicyStatusStore: PowerPolicyStatusStore
 
     @State private var destination: PopoverDestination = .root
     @State private var navigationDirection = 1
-    @State private var rootCardsPresented = false
 
-    private var snapshot: SystemStatusSnapshot {
-        statusStore.snapshot
+    init(
+        batteryStatusStore: BatteryStatusStore,
+        powerPolicyStatusStore: PowerPolicyStatusStore
+    ) {
+        self.batteryStatusStore = batteryStatusStore
+        self.powerPolicyStatusStore = powerPolicyStatusStore
     }
 
     var body: some View {
         popoverSurface
             .tint(DuoStatusStyle.accent)
             .fixedSize(horizontal: false, vertical: true)
-            .onAppear {
-                statusStore.refreshNow()
-            }
     }
 
     @ViewBuilder
@@ -40,16 +41,129 @@ struct StatusPopoverView: View {
         ZStack(alignment: .top) {
             switch destination {
             case .root:
-                rootContent
+                StatusRootView {
+                    navigate(to: .power, direction: 1)
+                }
                     .transition(pageTransition)
             case .power:
-                PowerControlView {
+                PowerControlView(
+                    batteryStatusStore: batteryStatusStore,
+                    powerPolicyStatusStore: powerPolicyStatusStore
+                ) {
                     navigate(to: .root, direction: -1)
                 }
                 .transition(pageTransition)
             }
         }
         .animation(reduceMotion ? nil : DuoStatusStyle.pageAnimation, value: destination)
+    }
+
+    @ViewBuilder
+    private var popoverSurface: some View {
+        if #available(macOS 26.0, *) {
+            destinationView
+                .padding(DuoStatusStyle.panelPadding)
+                .frame(width: adaptivePanelWidth)
+                .glassEffect(
+                    .clear,
+                    in: RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
+        } else {
+            destinationView
+                .padding(DuoStatusStyle.panelPadding)
+                .frame(width: adaptivePanelWidth)
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: DuoStatusStyle.panelCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
+        }
+    }
+
+    private var adaptivePanelWidth: CGFloat {
+        let metricFont = NSFont.systemFont(ofSize: 13)
+        let actionFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let metricLabelsWidth = HealthMetric.allCases.reduce(0) { width, metric in
+            width + DuoStatusStyle.textWidth(
+                localization.string(metric.localizationKey),
+                font: metricFont
+            )
+        }
+        let actionLabelWidth = [
+            localization.string("power.open-control"),
+            localization.string("wifi.settings")
+        ].map {
+            DuoStatusStyle.textWidth($0, font: actionFont)
+        }.max() ?? 0
+
+        let metricSelectorWidth = metricLabelsWidth + 3 * 28 + 64
+        let actionRowWidth = actionLabelWidth + 210
+        return DuoStatusStyle.clamped(
+            max(metricSelectorWidth, actionRowWidth),
+            min: DuoStatusStyle.panelMinWidth,
+            max: DuoStatusStyle.panelMaxWidth
+        )
+    }
+
+    private var pageTransition: AnyTransition {
+        guard !reduceMotion else {
+            return .opacity
+        }
+
+        let insertionEdge: Edge = navigationDirection > 0 ? .trailing : .leading
+        let removalEdge: Edge = navigationDirection > 0 ? .leading : .trailing
+        return .asymmetric(
+            insertion: .move(edge: insertionEdge).combined(with: .opacity),
+            removal: .move(edge: removalEdge).combined(with: .opacity)
+        )
+    }
+
+    private func navigate(to newDestination: PopoverDestination, direction: Int) {
+        navigationDirection = direction
+        if reduceMotion {
+            destination = newDestination
+        } else {
+            withAnimation(DuoStatusStyle.pageAnimation) {
+                destination = newDestination
+            }
+        }
+    }
+}
+
+private struct StatusRootView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var localization: LocalizationStore
+    @EnvironmentObject private var preferences: PreferencesStore
+    @EnvironmentObject private var statusStore: SystemStatusStore
+
+    @State private var rootCardsPresented = false
+
+    let onOpenPower: () -> Void
+
+    private var snapshot: SystemStatusSnapshot {
+        statusStore.snapshot
+    }
+
+    var body: some View {
+        rootContent
     }
 
     private var rootContent: some View {
@@ -107,46 +221,6 @@ struct StatusPopoverView: View {
         }
     }
 
-    @ViewBuilder
-    private var popoverSurface: some View {
-        if #available(macOS 26.0, *) {
-            destinationView
-                .padding(DuoStatusStyle.panelPadding)
-                .frame(width: DuoStatusStyle.panelWidth)
-                .glassEffect(
-                    .clear,
-                    in: RoundedRectangle(
-                        cornerRadius: DuoStatusStyle.panelCornerRadius,
-                        style: .continuous
-                    )
-                )
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: DuoStatusStyle.panelCornerRadius,
-                        style: .continuous
-                    )
-                )
-        } else {
-            destinationView
-                .padding(DuoStatusStyle.panelPadding)
-                .frame(width: DuoStatusStyle.panelWidth)
-                .background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(
-                        cornerRadius: DuoStatusStyle.panelCornerRadius,
-                        style: .continuous
-                    )
-                )
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: DuoStatusStyle.panelCornerRadius,
-                        style: .continuous
-                    )
-                )
-                .shadow(color: Color.black.opacity(0.18), radius: 24, y: 10)
-        }
-    }
-
     private var batteryCard: some View {
         DuoStatusCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -157,7 +231,7 @@ struct StatusPopoverView: View {
                         .foregroundStyle(DuoStatusStyle.success, .primary)
                         .frame(width: 28)
 
-                    Text(NSLocalizedString("section.battery", comment: ""))
+                    Text(localization.string("section.battery"))
                         .font(.system(size: 14, weight: .semibold))
 
                     Spacer(minLength: 0)
@@ -169,21 +243,24 @@ struct StatusPopoverView: View {
 
                 batteryProgress
 
-                HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(batterySummaryText)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DuoStatusStyle.muted)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                    Spacer(minLength: 0)
+                    HStack {
+                        Spacer(minLength: 0)
 
-                    Button {
-                        navigate(to: .power, direction: 1)
-                    } label: {
-                        actionLabel(NSLocalizedString("power.open-control", comment: ""))
+                        Button {
+                            onOpenPower()
+                        } label: {
+                            actionLabel(localization.string("power.open-control"))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("open-power-control")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("open-power-control")
                 }
             }
         }
@@ -227,16 +304,16 @@ struct StatusPopoverView: View {
                         .foregroundStyle(DuoStatusStyle.accent)
                         .frame(width: 28)
 
-                    Text(NSLocalizedString("wifi.title", comment: ""))
+                    Text(localization.string("wifi.title"))
                         .font(.system(size: 14, weight: .semibold))
 
                     Spacer(minLength: 0)
 
                     if snapshot.network.shouldShowWiFiSignal {
                         Image(systemName: "cellularbars")
-                            .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 20, weight: .medium))
                         .foregroundStyle(DuoStatusStyle.success)
-                        .accessibilityLabel(NSLocalizedString("network.signal", comment: ""))
+                        .accessibilityLabel(localization.string("network.signal"))
                         .accessibilityValue(
                             snapshot.network.signalLevel.map { "\($0)/4" } ?? "–"
                         )
@@ -248,18 +325,20 @@ struct StatusPopoverView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(networkStatusText)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(DuoStatusStyle.muted)
 
-                    Spacer(minLength: 0)
+                    HStack {
+                        Spacer(minLength: 0)
 
-                    Button(action: SettingsWindowAccess.openWiFiSettings) {
-                        actionLabel(NSLocalizedString("wifi.settings", comment: ""))
+                        Button(action: SettingsWindowAccess.openWiFiSettings) {
+                            actionLabel(localization.string("wifi.settings"))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("open-wifi-settings")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("open-wifi-settings")
                 }
             }
         }
@@ -274,11 +353,12 @@ struct StatusPopoverView: View {
                         .font(.system(size: 22, weight: .regular))
                         .frame(width: 28)
 
-                    Text(NSLocalizedString("section.system", comment: ""))
+                    Text(localization.string("section.system"))
                         .font(.system(size: 14, weight: .semibold))
                 }
 
                 HealthMetricSelector(
+                    compact: true,
                     selection: Binding(
                         get: { preferences.healthMetric },
                         set: { statusStore.setHealthMetric($0) }
@@ -329,7 +409,7 @@ struct StatusPopoverView: View {
                     .frame(width: 9, height: 9)
             }
         }
-        .accessibilityLabel(NSLocalizedString("health.dots", comment: ""))
+        .accessibilityLabel(localization.string("health.dots"))
         .accessibilityValue("\(activeCount)/4")
     }
 
@@ -354,14 +434,14 @@ struct StatusPopoverView: View {
     private var settingsActionLabel: some View {
         Image(systemName: "gearshape")
             .font(.system(size: 18, weight: .medium))
-            .accessibilityLabel(NSLocalizedString("settings.open", comment: ""))
+            .accessibilityLabel(localization.string("settings.open"))
     }
 
     private var quitAction: some View {
         Button {
             NSApplication.shared.terminate(nil)
         } label: {
-            Label(NSLocalizedString("common.quit", comment: ""), systemImage: "power")
+            Label(localization.string("common.quit"), systemImage: "power")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DuoStatusStyle.muted)
                 .padding(.horizontal, 4)
@@ -375,7 +455,9 @@ struct StatusPopoverView: View {
     private func actionLabel(_ title: String) -> some View {
         HStack(spacing: 4) {
             Text(title)
-                .lineLimit(1)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .bold))
         }
@@ -385,15 +467,17 @@ struct StatusPopoverView: View {
     }
 
     private var updatedText: String {
-        if abs(snapshot.lastUpdated.timeIntervalSinceNow) < 10 {
-            return "\(NSLocalizedString("status.updated", comment: "")) " +
-                NSLocalizedString("status.just-now", comment: "")
+        let lastUpdated = statusStore.lastUpdatedStore.date
+        if abs(lastUpdated.timeIntervalSinceNow) < 10 {
+            return "\(localization.string("status.updated")) " +
+                localization.string("status.just-now")
         }
 
         let formatter = RelativeDateTimeFormatter()
+        formatter.locale = localization.locale
         formatter.unitsStyle = .full
-        return "\(NSLocalizedString("status.updated", comment: "")) " +
-            formatter.localizedString(for: snapshot.lastUpdated, relativeTo: Date())
+        return "\(localization.string("status.updated")) " +
+            formatter.localizedString(for: lastUpdated, relativeTo: Date())
     }
 
     private var batteryPercentageText: String {
@@ -433,27 +517,27 @@ struct StatusPopoverView: View {
     }
 
     private var batterySummaryText: String {
-        let source = snapshot.battery.powerSource.localizedTitle
+        let source = localization.string(snapshot.battery.powerSource.localizationKey)
         let mode = snapshot.powerPolicy.activeMode.map {
-            NSLocalizedString($0.localizationKey, comment: "")
-        } ?? NSLocalizedString("status.unavailable", comment: "")
+            localization.string($0.localizationKey)
+        } ?? localization.string("status.unavailable")
         return "\(source) · \(mode)"
     }
 
     private var networkName: String {
-        snapshot.network.name ?? snapshot.network.kind.localizedTitle
+        snapshot.network.name ?? localization.string(snapshot.network.kind.localizationKey)
     }
 
     private var networkStatusText: String {
         guard snapshot.network.availability.reason == nil else {
-            return NSLocalizedString("status.unavailable", comment: "")
+            return localization.string("status.unavailable")
         }
 
         switch snapshot.network.kind {
         case .wifi, .ethernet, .hotspot:
-            return NSLocalizedString("network.connected", comment: "")
+            return localization.string("network.connected")
         case .disconnected, .unavailable:
-            return snapshot.network.kind.localizedTitle
+            return localization.string(snapshot.network.kind.localizationKey)
         }
     }
 
@@ -464,7 +548,7 @@ struct StatusPopoverView: View {
                 return nil
             }
             return (
-                NSLocalizedString("health.metric.cpu", comment: ""),
+                localization.string("health.metric.cpu"),
                 String(format: "%.0f%%", usage)
             )
         case .thermal:
@@ -472,43 +556,20 @@ struct StatusPopoverView: View {
                 return nil
             }
             return (
-                NSLocalizedString("health.metric.thermal", comment: ""),
-                thermalState.localizedTitle
+                localization.string("health.metric.thermal"),
+                localization.string(thermalState.localizationKey)
             )
         case .load:
             guard let load = snapshot.health.oneMinuteLoad else {
                 return nil
             }
             return (
-                NSLocalizedString("health.load.one-minute", comment: ""),
+                localization.string("health.load.one-minute"),
                 String(format: "%.2f", load)
             )
         }
     }
 
-    private var pageTransition: AnyTransition {
-        guard !reduceMotion else {
-            return .opacity
-        }
-
-        let insertionEdge: Edge = navigationDirection > 0 ? .trailing : .leading
-        let removalEdge: Edge = navigationDirection > 0 ? .leading : .trailing
-        return .asymmetric(
-            insertion: .move(edge: insertionEdge).combined(with: .opacity),
-            removal: .move(edge: removalEdge).combined(with: .opacity)
-        )
-    }
-
-    private func navigate(to newDestination: PopoverDestination, direction: Int) {
-        navigationDirection = direction
-        if reduceMotion {
-            destination = newDestination
-        } else {
-            withAnimation(DuoStatusStyle.pageAnimation) {
-                destination = newDestination
-            }
-        }
-    }
 }
 
 private struct RootCardEntrance: ViewModifier {
@@ -530,46 +591,46 @@ private struct RootCardEntrance: ViewModifier {
 }
 
 private extension PowerSource {
-    var localizedTitle: String {
+    var localizationKey: String {
         switch self {
         case .battery:
-            return NSLocalizedString("battery.power-source.battery", comment: "")
+            return "battery.power-source.battery"
         case .powerAdapter:
-            return NSLocalizedString("battery.power-source.adapter", comment: "")
+            return "battery.power-source.adapter"
         case .unknown:
-            return NSLocalizedString("status.unavailable", comment: "")
+            return "status.unavailable"
         }
     }
 }
 
 private extension ThermalState {
-    var localizedTitle: String {
+    var localizationKey: String {
         switch self {
         case .nominal:
-            return NSLocalizedString("health.thermal.nominal", comment: "")
+            return "health.thermal.nominal"
         case .fair:
-            return NSLocalizedString("health.thermal.fair", comment: "")
+            return "health.thermal.fair"
         case .serious:
-            return NSLocalizedString("health.thermal.serious", comment: "")
+            return "health.thermal.serious"
         case .critical:
-            return NSLocalizedString("health.thermal.critical", comment: "")
+            return "health.thermal.critical"
         }
     }
 }
 
 extension NetworkKind {
-    var localizedTitle: String {
+    var localizationKey: String {
         switch self {
         case .wifi:
-            return NSLocalizedString("network.kind.wifi", comment: "")
+            return "network.kind.wifi"
         case .ethernet:
-            return NSLocalizedString("network.kind.ethernet", comment: "")
+            return "network.kind.ethernet"
         case .hotspot:
-            return NSLocalizedString("network.kind.hotspot", comment: "")
+            return "network.kind.hotspot"
         case .disconnected:
-            return NSLocalizedString("network.kind.disconnected", comment: "")
+            return "network.kind.disconnected"
         case .unavailable:
-            return NSLocalizedString("status.unavailable", comment: "")
+            return "status.unavailable"
         }
     }
 }

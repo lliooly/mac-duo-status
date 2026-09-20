@@ -34,6 +34,8 @@ struct DuoStatusCard<Content: View>: View {
 }
 
 struct PopoverPageHeader<Trailing: View>: View {
+    @EnvironmentObject private var localization: LocalizationStore
+
     let title: String
     let subtitle: String?
     let onBack: (() -> Void)?
@@ -62,7 +64,7 @@ struct PopoverPageHeader<Trailing: View>: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(NSLocalizedString("common.back", comment: ""))
+                .accessibilityLabel(localization.string("common.back"))
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -114,6 +116,8 @@ struct DuoStatusIconButtonStyle: ButtonStyle {
 }
 
 struct StatusSectionView<Content: View>: View {
+    @EnvironmentObject private var localization: LocalizationStore
+
     let section: StatusSection
     @Binding var isExpanded: Bool
     @ViewBuilder let content: () -> Content
@@ -131,7 +135,7 @@ struct StatusSectionView<Content: View>: View {
                         .foregroundStyle(.primary)
                         .frame(width: 22)
 
-                    Text(section.localizedTitle)
+                    Text(localization.string(section.localizationKey))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.primary)
 
@@ -198,6 +202,8 @@ struct StatusValueRow: View {
 }
 
 struct UnavailableStatusView: View {
+    @EnvironmentObject private var localization: LocalizationStore
+
     let reason: String?
 
     @ViewBuilder
@@ -207,7 +213,7 @@ struct UnavailableStatusView: View {
                 Text(reason)
                     .foregroundStyle(DuoStatusStyle.muted)
             } else {
-                Text(NSLocalizedString("status.unavailable", comment: ""))
+                Text(localization.string("status.unavailable"))
                     .foregroundStyle(DuoStatusStyle.muted)
             }
         }
