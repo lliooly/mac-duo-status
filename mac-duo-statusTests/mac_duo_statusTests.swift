@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Combine
 import Testing
 @testable import mac_duo_status
 
@@ -249,6 +250,125 @@ struct mac_duo_statusTests {
         #expect(status.activeMode == .highPower)
     }
 
+    @Test func powerPolicyReadsTheCompletePowerStateOncePerRefresh() async {
+        let powerControl = RecordingPowerControl(
+            capabilities: .unsupported,
+            powerModeReadback: .automatic,
+            activePowerModeReadback: .highPower
+        )
+        let provider = PowerPolicyProvider(
+            helper: powerControl,
+            lowPowerModeEnabled: { false },
+            powerStateRefreshIntervalNanoseconds: 0
+        )
+
+        let status = await provider.read()
+
+        #expect(powerControl.readPowerStateCalls == 1)
+        #expect(status.activeMode == .highPower)
+        #expect(status.batteryMode == .automatic)
+        #expect(status.adapterMode == .automatic)
+    }
+
+    @Test func powerPolicyCachesPowerStateBetweenRefreshes() async {
+        let powerControl = RecordingPowerControl(
+            capabilities: .unsupported,
+            powerModeReadback: .automatic,
+            activePowerModeReadback: .highPower
+        )
+        let provider = PowerPolicyProvider(
+            helper: powerControl,
+            lowPowerModeEnabled: { false },
+            powerStateRefreshIntervalNanoseconds: 5_000_000_000
+        )
+
+        _ = await provider.read()
+        _ = await provider.read()
+
+        #expect(powerControl.readPowerStateCalls == 1)
+    }
+
+    @Test
+    func powerPolicyDoesNotRestoreInvalidatedCacheFromAnOlderRead() async {
+        let oldState = PowerModeState(
+            activeMode: .automatic,
+            batteryMode: .automatic,
+            adapterMode: .automatic
+        )
+        let updatedState = PowerModeState(
+            activeMode: .lowPower,
+            batteryMode: .lowPower,
+            adapterMode: .automatic
+        )
+        let helper = InterleavedPowerControl(
+            initialState: oldState,
+            updatedState: updatedState
+        )
+        let provider = PowerPolicyProvider(
+            helper: helper,
+            lowPowerModeEnabled: { false },
+            powerStateRefreshIntervalNanoseconds: 5_000_000_000
+        )
+
+        let olderRead = Task {
+            await provider.read()
+        }
+        await helper.waitForFirstRead()
+
+        try? await provider.setPowerMode(.lowPower, scope: .battery)
+        await helper.releaseFirstRead()
+        _ = await olderRead.value
+
+        let refreshed = await provider.read()
+
+        #expect(refreshed.batteryMode == .lowPower)
+        #expect(helper.readPowerStateCalls == 2)
+    }
+
+    @Test
+    func powerPolicyDoesNotRestoreInvalidatedCacheAfterAChangeNotification() async {
+        let oldState = PowerModeState(
+            activeMode: .automatic,
+            batteryMode: .automatic,
+            adapterMode: .automatic
+        )
+        let updatedState = PowerModeState(
+            activeMode: .lowPower,
+            batteryMode: .lowPower,
+            adapterMode: .automatic
+        )
+        let notificationCenter = NotificationCenter()
+        let helper = InterleavedPowerControl(
+            initialState: oldState,
+            updatedState: updatedState
+        )
+        let provider = PowerPolicyProvider(
+            helper: helper,
+            notificationCenter: notificationCenter,
+            lowPowerModeEnabled: { false },
+            powerStateRefreshIntervalNanoseconds: 5_000_000_000
+        )
+        provider.startObserving {}
+        defer { provider.stopObserving() }
+
+        let olderRead = Task {
+            await provider.read()
+        }
+        await helper.waitForFirstRead()
+
+        notificationCenter.post(
+            name: Notification.Name.NSProcessInfoPowerStateDidChange,
+            object: ProcessInfo.processInfo
+        )
+        await helper.releaseFirstRead()
+        _ = await olderRead.value
+
+        let refreshed = await provider.read()
+
+        #expect(refreshed.batteryMode == .lowPower)
+        #expect(helper.readPowerStateCalls == 2)
+    }
+
     @Test func controlStateOnlyMarksPendingOperationsAsBusy() {
         #expect(ControlOperationState.idle.isPending == false)
         #expect(ControlOperationState.pending.isPending)
@@ -311,6 +431,86 @@ struct mac_duo_statusTests {
 
         powerControl.releasePowerMode()
         await firstOperation.value
+    }
+
+    @Test
+    func coordinatorWaitsForAnInFlightRefreshBeforeConfirmingPowerWrite() async {
+        let suiteName = "DuoStatusTests-(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let capabilities = PowerCapabilities(
+            energyModeScopes: [.battery],
+            supportedPowerModes: [.automatic, .lowPower],
+            requiresHelper: true,
+            helperStatus: .authorized
+        )
+        let oldStatus = PowerPolicyStatus(
+            availability: .available,
+            activeMode: .automatic,
+            batteryMode: .automatic,
+            adapterMode: .automatic,
+            helperStatus: .authorized,
+            capabilities: capabilities
+        )
+        let newStatus = PowerPolicyStatus(
+            availability: .available,
+            activeMode: .lowPower,
+            batteryMode: .lowPower,
+            adapterMode: .automatic,
+            helperStatus: .authorized,
+            capabilities: capabilities
+        )
+        let policyProvider = SequencedPowerPolicyProvider(
+            initialStatus: oldStatus,
+            updatedStatus: newStatus
+        )
+        let powerControl = RecordingPowerControl(
+            capabilities: capabilities,
+            powerModeReadback: .lowPower
+        )
+        let store = SystemStatusStore(
+            preferences: PreferencesStore(defaults: defaults),
+            providers: ProviderContainer(
+                battery: FixedBatteryProvider(
+                    value: .unavailable(reason: "Battery unavailable")
+                ),
+                network: FixedNetworkProvider(
+                    value: .unavailable(reason: "Network unavailable")
+                ),
+                health: FixedHealthProvider(
+                    value: .unavailable(selectedMetric: .cpu)
+                ),
+                powerPolicy: policyProvider,
+                powerControl: powerControl
+            )
+        )
+        let controls = ControlCoordinator(
+            statusStore: store,
+            powerControl: powerControl
+        )
+
+        store.refreshNow()
+        await policyProvider.waitForFirstRead()
+
+        let operation = Task { @MainActor in
+            await controls.setPowerMode(.lowPower, scope: .battery)
+        }
+        while powerControl.setPowerModeCalls == 0 {
+            await Task.yield()
+        }
+        await Task.yield()
+
+        #expect(controls.powerOperationState == .pending)
+
+        await policyProvider.releaseFirstRead()
+        await operation.value
+
+        #expect(controls.powerOperationState == .succeeded)
+        #expect(powerControl.operationEvents == ["set", "uncached-read"])
+        #expect(powerControl.uncachedReadCalls == 1)
+        #expect(policyProvider.readCount == 2)
+        #expect(store.snapshot.powerPolicy.batteryMode == .lowPower)
     }
 
     @Test func onlyWiFiShowsSignalStrength() {
@@ -402,14 +602,14 @@ struct mac_duo_statusTests {
 
     @Test
     @MainActor
-    func preferencesPersistAllV1Settings() {
+    func preferencesPersistAllV1Settings() async {
         let suiteName = "DuoStatusTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         let preferences = PreferencesStore(defaults: defaults)
         preferences.healthMetric = .load
-        preferences.launchAtLogin = true
+        await preferences.setLaunchAtLogin(true)
         preferences.usesColor = true
         preferences.setExpanded(true, for: .network)
 
@@ -418,6 +618,51 @@ struct mac_duo_statusTests {
         #expect(restored.launchAtLogin)
         #expect(restored.usesColor)
         #expect(restored.isExpanded(.network))
+    }
+
+    @Test
+    func metricSelectionDefersPublishingAndKeepsLatestRequest() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = makeStatusStore(
+            network: .unavailable(reason: "Test"),
+            defaults: defaults
+        )
+        var publicationCount = 0
+        let subscription = store.$snapshot.dropFirst().sink { _ in
+            publicationCount += 1
+        }
+        defer { subscription.cancel() }
+
+        store.setHealthMetric(.thermal)
+        store.setHealthMetric(.load)
+        #expect(publicationCount == 0)
+        #expect(store.snapshot.health.selectedMetric == .cpu)
+        #expect(defaults.string(forKey: "healthMetric") == nil)
+
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        #expect(publicationCount == 1)
+        #expect(store.snapshot.health.selectedMetric == .load)
+        #expect(store.healthStatusStore.status.selectedMetric == .load)
+        #expect(PreferencesStore(defaults: defaults).healthMetric == .load)
+
+        // Returning to the current selection cancels an intermediate request.
+        store.setHealthMetric(.cpu)
+        store.setHealthMetric(.load)
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        #expect(publicationCount == 1)
+        #expect(store.snapshot.health.selectedMetric == .load)
+
+        store.setHealthMetric(.load)
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        #expect(publicationCount == 1)
     }
 
     @Test
@@ -534,7 +779,246 @@ struct mac_duo_statusTests {
 
     @Test
     @MainActor
-    func launchAtLoginRollsBackWhenRegistrationFails() {
+    func statusStorePublishesFastDomainsBeforeSlowDomainsFinish() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let expectedBattery = testBattery(
+            chargeFraction: 0.8,
+            isCharging: false,
+            isLowPowerModeEnabled: false
+        )
+        let expectedHealth = HealthStatus(
+            availability: .available,
+            cpuUsagePercent: 20,
+            oneMinuteLoad: 1,
+            fiveMinuteLoad: 1,
+            fifteenMinuteLoad: 1,
+            logicalCPUCount: 4,
+            thermalState: .nominal,
+            cpuScore: 0.8,
+            loadScore: 0.75,
+            thermalScore: 1,
+            selectedMetric: .cpu,
+            selectedScore: 0.8,
+            dotCount: 3
+        )
+        let networkGate = AsyncGate()
+        let powerPolicyGate = AsyncGate()
+        let store = SystemStatusStore(
+            preferences: PreferencesStore(defaults: defaults),
+            providers: ProviderContainer(
+                battery: FixedBatteryProvider(value: expectedBattery),
+                network: GatedNetworkProvider(
+                    gate: networkGate,
+                    value: .unavailable(reason: "Network read is gated")
+                ),
+                health: FixedHealthProvider(value: expectedHealth),
+                powerPolicy: GatedPowerPolicyProvider(
+                    gate: powerPolicyGate,
+                    value: .unavailable(reason: "Power policy read is gated")
+                )
+            ),
+            samplingIntervalNanoseconds: 0,
+            lowFrequencyRefreshIntervalNanoseconds: 0
+        )
+
+        store.start()
+        await waitUntil {
+            store.snapshot.battery == expectedBattery &&
+                store.snapshot.health == expectedHealth
+        }
+
+        #expect(store.snapshot.battery == expectedBattery)
+        #expect(store.snapshot.health == expectedHealth)
+
+        await networkGate.open()
+        await powerPolicyGate.open()
+        store.stop()
+    }
+
+    @Test
+    @MainActor
+    func statusStoreRefreshesOnlyAffectedDomainsForProviderEvents() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let batteryProvider = EventedBatteryProvider(
+            value: .unavailable(reason: "Battery unavailable")
+        )
+        let networkProvider = EventedNetworkProvider(
+            value: .unavailable(reason: "Network unavailable")
+        )
+        let healthProvider = EventedHealthProvider(
+            value: .unavailable(selectedMetric: .cpu)
+        )
+        let powerPolicyProvider = EventedPowerPolicyProvider(
+            value: .unavailable(reason: "Power policy unavailable")
+        )
+        let store = SystemStatusStore(
+            preferences: PreferencesStore(defaults: defaults),
+            providers: ProviderContainer(
+                battery: batteryProvider,
+                network: networkProvider,
+                health: healthProvider,
+                powerPolicy: powerPolicyProvider
+            ),
+            samplingIntervalNanoseconds: 0,
+            lowFrequencyRefreshIntervalNanoseconds: 0
+        )
+
+        store.start()
+        await waitUntil {
+            batteryProvider.readCount == 1 &&
+                networkProvider.readCount == 1 &&
+                healthProvider.readCount == 1 &&
+                powerPolicyProvider.readCount == 1
+        }
+
+        batteryProvider.resetReadCount()
+        networkProvider.resetReadCount()
+        healthProvider.resetReadCount()
+        powerPolicyProvider.resetReadCount()
+
+        networkProvider.sendEvent()
+        await waitUntil { networkProvider.readCount == 1 }
+        #expect(batteryProvider.readCount == 0)
+        #expect(healthProvider.readCount == 0)
+        #expect(powerPolicyProvider.readCount == 0)
+
+        batteryProvider.resetReadCount()
+        networkProvider.resetReadCount()
+        healthProvider.resetReadCount()
+        powerPolicyProvider.resetReadCount()
+
+        powerPolicyProvider.sendEvent()
+        await waitUntil { powerPolicyProvider.readCount == 1 }
+        #expect(batteryProvider.readCount == 0)
+        #expect(networkProvider.readCount == 0)
+        #expect(healthProvider.readCount == 0)
+
+        batteryProvider.resetReadCount()
+        networkProvider.resetReadCount()
+        healthProvider.resetReadCount()
+        powerPolicyProvider.resetReadCount()
+
+        healthProvider.sendEvent()
+        await waitUntil { healthProvider.readCount == 1 }
+        #expect(batteryProvider.readCount == 0)
+        #expect(networkProvider.readCount == 0)
+        #expect(powerPolicyProvider.readCount == 0)
+
+        batteryProvider.resetReadCount()
+        networkProvider.resetReadCount()
+        healthProvider.resetReadCount()
+        powerPolicyProvider.resetReadCount()
+
+        batteryProvider.setValue(testBattery(
+            chargeFraction: 0.7,
+            isCharging: true,
+            isLowPowerModeEnabled: false
+        ))
+        batteryProvider.sendEvent()
+        await waitUntil {
+            batteryProvider.readCount == 1 &&
+                powerPolicyProvider.readCount == 1
+        }
+        #expect(networkProvider.readCount == 0)
+        #expect(healthProvider.readCount == 0)
+
+        store.stop()
+    }
+
+    @Test
+    @MainActor
+    func statusStoreUsesTheLowFrequencyFallbackForSlowDomains() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let networkProvider = EventedNetworkProvider(
+            value: .unavailable(reason: "Network unavailable")
+        )
+        let powerPolicyProvider = EventedPowerPolicyProvider(
+            value: .unavailable(reason: "Power policy unavailable")
+        )
+        let store = SystemStatusStore(
+            preferences: PreferencesStore(defaults: defaults),
+            providers: ProviderContainer(
+                battery: FixedBatteryProvider(
+                    value: .unavailable(reason: "Battery unavailable")
+                ),
+                network: networkProvider,
+                health: FixedHealthProvider(
+                    value: .unavailable(selectedMetric: .cpu)
+                ),
+                powerPolicy: powerPolicyProvider
+            ),
+            samplingIntervalNanoseconds: 1_000_000_000,
+            lowFrequencyRefreshIntervalNanoseconds: 10_000_000
+        )
+
+        store.start()
+        await waitUntil {
+            networkProvider.readCount >= 1 &&
+                powerPolicyProvider.readCount >= 1
+        }
+        await waitUntil {
+            networkProvider.readCount >= 2 &&
+                powerPolicyProvider.readCount >= 2
+        }
+
+        #expect(networkProvider.readCount >= 2)
+        #expect(powerPolicyProvider.readCount >= 2)
+        store.stop()
+    }
+
+    @Test
+    @MainActor
+    func statusStoreDoesNotPublishASecondSnapshotForUnchangedProviderValues() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let expectedBattery = testBattery(
+            chargeFraction: 0.8,
+            isCharging: false,
+            isLowPowerModeEnabled: false
+        )
+        let store = SystemStatusStore(
+            preferences: PreferencesStore(defaults: defaults),
+            providers: ProviderContainer(
+                battery: FixedBatteryProvider(value: expectedBattery),
+                network: FixedNetworkProvider(
+                    value: .unavailable(reason: "Network unavailable")
+                ),
+                health: FixedHealthProvider(
+                    value: .unavailable(selectedMetric: .cpu)
+                )
+            )
+        )
+        let publishCounter = LockedCounter()
+        let cancellation = store.$snapshot
+            .dropFirst()
+            .sink { _ in
+                publishCounter.increment()
+            }
+
+        await store.refreshNowAndWait()
+        let publishCountAfterFirstRefresh = publishCounter.value
+
+        await store.refreshNowAndWait()
+
+        #expect(publishCountAfterFirstRefresh > 0)
+        #expect(publishCounter.value == publishCountAfterFirstRefresh)
+        _ = cancellation
+    }
+
+    @Test
+    @MainActor
+    func launchAtLoginRollsBackWhenRegistrationFails() async {
         let suiteName = "DuoStatusTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -544,10 +1028,225 @@ struct mac_duo_statusTests {
             launchAtLoginManager: FailingLaunchAtLoginManager()
         )
 
-        preferences.launchAtLogin = true
+        await preferences.setLaunchAtLogin(true)
 
         #expect(preferences.launchAtLogin == false)
         #expect(defaults.bool(forKey: "launchAtLogin") == false)
+    }
+
+    @Test
+    @MainActor
+    func launchAtLoginShowsProgressWhileRegistrationIsInFlight() async {
+        let suiteName = "DuoStatusTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let manager = GatedLaunchAtLoginManager()
+        let preferences = PreferencesStore(
+            defaults: defaults,
+            launchAtLoginManager: manager
+        )
+
+        let operation = Task { @MainActor in
+            await preferences.setLaunchAtLogin(true)
+        }
+        await waitUntil { preferences.isUpdatingLaunchAtLogin }
+
+        #expect(preferences.launchAtLogin)
+        #expect(preferences.isUpdatingLaunchAtLogin)
+
+        await manager.release()
+        await operation.value
+
+        #expect(!preferences.isUpdatingLaunchAtLogin)
+        #expect(defaults.bool(forKey: "launchAtLogin"))
+    }
+
+    @Test
+    @MainActor
+    func localizationPersistsTheSelectedLanguage() {
+        let suiteName = "DuoStatusLocalizationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let localization = LocalizationStore(defaults: defaults)
+        #expect(localization.language == .system)
+
+        localization.language = .japanese
+
+        #expect(defaults.string(forKey: "appLanguage") == AppLanguage.japanese.rawValue)
+        #expect(LocalizationStore(defaults: defaults).language == .japanese)
+    }
+
+    @Test
+    @MainActor
+    func localizationRejectsUnknownStoredLanguages() {
+        let suiteName = "DuoStatusLocalizationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set("pt-BR", forKey: "appLanguage")
+
+        #expect(LocalizationStore(defaults: defaults).language == .system)
+    }
+
+    @Test
+    @MainActor
+    func localizationSwitchesBundlesAndFallsBackForMissingKeys() {
+        let suiteName = "DuoStatusLocalizationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let localization = LocalizationStore(defaults: defaults)
+
+        localization.language = .english
+        #expect(localization.string("settings.language") == "Language")
+
+        localization.language = .japanese
+        #expect(localization.string("settings.language") == "言語")
+        #expect(localization.string("localization.missing-key") == "localization.missing-key")
+    }
+
+    @Test
+    @MainActor
+    func widgetSnapshotRoundTripsThroughSharedDefaults() {
+        let suiteName = "DuoStatusWidgetTests-\(UUID().uuidString)"
+        let writerDefaults = UserDefaults(suiteName: suiteName)!
+        defer { writerDefaults.removePersistentDomain(forName: suiteName) }
+
+        let snapshot = WidgetStatusSnapshot(
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            battery: .init(
+                isAvailable: true,
+                hasBuiltInBattery: true,
+                chargeFraction: 0.63,
+                isCharging: true,
+                isLowPowerModeEnabled: false
+            ),
+            network: .init(isAvailable: true, kind: .wifi),
+            healthDotCount: 3,
+            usesColor: true
+        )
+        let writer = WidgetStatusSnapshotStore(defaults: writerDefaults)
+
+        #expect(writer.write(snapshot))
+
+        let readerDefaults = UserDefaults(suiteName: suiteName)!
+        let reader = WidgetStatusSnapshotStore(defaults: readerDefaults)
+        #expect(reader.read() == snapshot)
+    }
+
+    @Test
+    func widgetSnapshotStoreReturnsNilForAnEmptySharedSuite() {
+        let suiteName = "DuoStatusWidgetEmptyTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = WidgetStatusSnapshotStore(defaults: defaults)
+
+        #expect(store.read() == nil)
+    }
+
+    @Test
+    @MainActor
+    func widgetFileStoreReadsNewWritesWithoutRecreatingReader() throws {
+        let container = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+        let writer = WidgetStatusSnapshotStore(containerURL: container)
+        let reader = WidgetStatusSnapshotStore(containerURL: container)
+        #expect(reader.read() == nil)
+
+        let first = WidgetStatusSnapshot.placeholder
+        #expect(writer.write(first))
+        #expect(reader.read() == first)
+        let second = WidgetStatusSnapshot.unavailable(updatedAt: first.updatedAt.addingTimeInterval(60))
+        #expect(writer.write(second))
+        #expect(reader.read() == second)
+
+        let file = container.appendingPathComponent("widget-status-snapshot.json")
+        try Data("invalid JSON".utf8).write(to: file)
+        #expect(reader.read() == nil)
+        #expect(writer.write(first))
+        #expect(reader.read() == first)
+    }
+
+    @Test
+    @MainActor
+    func widgetFileStoreReportsFailedWrites() {
+        let missingContainer = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = WidgetStatusSnapshotStore(containerURL: missingContainer)
+        #expect(!store.write(.placeholder))
+        #expect(store.read() == nil)
+    }
+
+    @Test
+    func widgetDisplayContentIgnoresHeartbeatTimestamp() {
+        let first = WidgetStatusSnapshot.placeholder
+        let second = WidgetStatusSnapshot(
+            updatedAt: first.updatedAt.addingTimeInterval(60),
+            battery: first.battery,
+            network: first.network,
+            healthDotCount: first.healthDotCount,
+            usesColor: first.usesColor
+        )
+
+        #expect(first.hasSameDisplayContent(as: second))
+    }
+
+    @Test
+    @MainActor
+    func widgetBridgeProjectsExistingStatusSnapshotWithoutNewProviders() {
+        let suiteName = "DuoStatusWidgetBridgeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let battery = testBattery(
+            chargeFraction: 0.42,
+            isCharging: false,
+            isLowPowerModeEnabled: true
+        )
+        let snapshot = SystemStatusSnapshot(
+            lastUpdated: Date(),
+            battery: battery,
+            network: NetworkStatus(
+                availability: .available,
+                kind: .ethernet,
+                name: nil,
+                rssi: nil,
+                signalLevel: nil,
+                hotspotConfirmed: false
+            ),
+            health: HealthStatus(
+                availability: .available,
+                cpuUsagePercent: 20,
+                oneMinuteLoad: 1,
+                fiveMinuteLoad: 1,
+                fifteenMinuteLoad: 1,
+                logicalCPUCount: 4,
+                thermalState: .nominal,
+                cpuScore: 0.8,
+                loadScore: 0.75,
+                thermalScore: 1,
+                selectedMetric: .cpu,
+                selectedScore: 0.8,
+                dotCount: 3
+            ),
+            powerPolicy: .unavailable(reason: "Not used by widget")
+        )
+        let store = WidgetStatusSnapshotStore(defaults: defaults)
+        let bridge = WidgetStatusBridge(snapshotStore: store)
+
+        bridge.publish(snapshot: snapshot, usesColor: true)
+
+        let published = store.read()
+        #expect(published?.battery.chargeFraction == 0.42)
+        #expect(published?.battery.isLowPowerModeEnabled == true)
+        #expect(published?.network.kind == .ethernet)
+        #expect(published?.healthDotCount == 3)
+        #expect(published?.usesColor == true)
     }
 }
 
@@ -622,9 +1321,16 @@ private final class LockedCounter: @unchecked Sendable {
     }
 
     func increment() {
+        _ = incrementAndRead()
+    }
+
+    @discardableResult
+    func incrementAndRead() -> Int {
         lock.lock()
         count += 1
+        let value = count
         lock.unlock()
+        return value
     }
 }
 
@@ -660,12 +1366,367 @@ private struct FixedHealthProvider: HealthProviding {
     }
 }
 
+private struct GatedNetworkProvider: NetworkProviding {
+    let gate: AsyncGate
+    let value: NetworkStatus
+
+    func read() async -> NetworkStatus {
+        await gate.wait()
+        return value
+    }
+}
+
+private struct GatedPowerPolicyProvider: PowerPolicyProviding {
+    let gate: AsyncGate
+    let value: PowerPolicyStatus
+
+    func read() async -> PowerPolicyStatus {
+        await gate.wait()
+        return value
+    }
+}
+
+private final class ProviderEventState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    private var handler: (@Sendable () -> Void)?
+
+    var readCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    func recordRead() {
+        lock.lock()
+        count += 1
+        lock.unlock()
+    }
+
+    func resetReadCount() {
+        lock.lock()
+        count = 0
+        lock.unlock()
+    }
+
+    func setHandler(_ handler: @escaping @Sendable () -> Void) {
+        lock.lock()
+        self.handler = handler
+        lock.unlock()
+    }
+
+    func clearHandler() {
+        lock.lock()
+        handler = nil
+        lock.unlock()
+    }
+
+    func sendEvent() {
+        lock.lock()
+        let handler = handler
+        lock.unlock()
+        handler?()
+    }
+}
+
+private final class EventedBatteryProvider: BatteryProviding, @unchecked Sendable {
+    private let state = ProviderEventState()
+    private let currentValue: LockedValue<BatteryStatus>
+
+    init(value: BatteryStatus) {
+        currentValue = LockedValue(value)
+    }
+
+    var readCount: Int { state.readCount }
+
+    func read() async -> BatteryStatus {
+        state.recordRead()
+        return currentValue.get()
+    }
+
+    func startObserving(_ handler: @escaping @Sendable () -> Void) {
+        state.setHandler(handler)
+    }
+
+    func stopObserving() {
+        state.clearHandler()
+    }
+
+    func setValue(_ value: BatteryStatus) {
+        currentValue.set(value)
+    }
+
+    func resetReadCount() {
+        state.resetReadCount()
+    }
+
+    func sendEvent() {
+        state.sendEvent()
+    }
+}
+
+private final class LockedValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+
+    func get() -> Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func set(_ value: Value) {
+        lock.lock()
+        self.value = value
+        lock.unlock()
+    }
+}
+
+private final class EventedNetworkProvider: NetworkProviding, @unchecked Sendable {
+    private let state = ProviderEventState()
+    private let value: NetworkStatus
+
+    init(value: NetworkStatus) {
+        self.value = value
+    }
+
+    var readCount: Int { state.readCount }
+
+    func read() async -> NetworkStatus {
+        state.recordRead()
+        return value
+    }
+
+    func startObserving(_ handler: @escaping @Sendable () -> Void) {
+        state.setHandler(handler)
+    }
+
+    func stopObserving() {
+        state.clearHandler()
+    }
+
+    func resetReadCount() {
+        state.resetReadCount()
+    }
+
+    func sendEvent() {
+        state.sendEvent()
+    }
+}
+
+private final class EventedHealthProvider: HealthProviding, @unchecked Sendable {
+    private let state = ProviderEventState()
+    private let value: HealthStatus
+
+    init(value: HealthStatus) {
+        self.value = value
+    }
+
+    var readCount: Int { state.readCount }
+
+    func read() async -> HealthStatus {
+        state.recordRead()
+        return value
+    }
+
+    func startObserving(_ handler: @escaping @Sendable () -> Void) {
+        state.setHandler(handler)
+    }
+
+    func stopObserving() {
+        state.clearHandler()
+    }
+
+    func resetReadCount() {
+        state.resetReadCount()
+    }
+
+    func sendEvent() {
+        state.sendEvent()
+    }
+}
+
+private final class EventedPowerPolicyProvider: PowerPolicyProviding, @unchecked Sendable {
+    private let state = ProviderEventState()
+    private let value: PowerPolicyStatus
+
+    init(value: PowerPolicyStatus) {
+        self.value = value
+    }
+
+    var readCount: Int { state.readCount }
+
+    func read() async -> PowerPolicyStatus {
+        state.recordRead()
+        return value
+    }
+
+    func startObserving(_ handler: @escaping @Sendable () -> Void) {
+        state.setHandler(handler)
+    }
+
+    func stopObserving() {
+        state.clearHandler()
+    }
+
+    func resetReadCount() {
+        state.resetReadCount()
+    }
+
+    func sendEvent() {
+        state.sendEvent()
+    }
+}
+
+@MainActor
+private func waitUntil(
+    iterations: Int = 100,
+    condition: () -> Bool
+) async {
+    for _ in 0 ..< iterations {
+        if condition() {
+            return
+        }
+
+        try? await Task.sleep(nanoseconds: 1_000_000)
+    }
+}
+
+private actor AsyncGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        guard !isOpen else {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func open() {
+        isOpen = true
+        let pendingWaiters = waiters
+        waiters.removeAll()
+        pendingWaiters.forEach { $0.resume() }
+    }
+}
+
+private final class SequencedPowerPolicyProvider: PowerPolicyProviding, @unchecked Sendable {
+    private let initialStatus: PowerPolicyStatus
+    private let updatedStatus: PowerPolicyStatus
+    private let firstReadStarted = AsyncGate()
+    private let releaseFirstReadGate = AsyncGate()
+    private let readCounter = LockedCounter()
+
+    var readCount: Int {
+        readCounter.value
+    }
+
+    init(
+        initialStatus: PowerPolicyStatus,
+        updatedStatus: PowerPolicyStatus
+    ) {
+        self.initialStatus = initialStatus
+        self.updatedStatus = updatedStatus
+    }
+
+    func read() async -> PowerPolicyStatus {
+        let readNumber = readCounter.incrementAndRead()
+
+        if readNumber == 1 {
+            await firstReadStarted.open()
+            await releaseFirstReadGate.wait()
+            return initialStatus
+        }
+
+        return updatedStatus
+    }
+
+    func waitForFirstRead() async {
+        await firstReadStarted.wait()
+    }
+
+    func releaseFirstRead() async {
+        await releaseFirstReadGate.open()
+    }
+}
+
+private final class InterleavedPowerControl: PowerControlProviding, @unchecked Sendable {
+    private let initialState: PowerModeState
+    private let updatedState: PowerModeState
+    private let firstReadStarted = AsyncGate()
+    private let releaseFirstReadGate = AsyncGate()
+    private let readCounter = LockedCounter()
+
+    var readPowerStateCalls: Int {
+        readCounter.value
+    }
+
+    init(initialState: PowerModeState, updatedState: PowerModeState) {
+        self.initialState = initialState
+        self.updatedState = updatedState
+    }
+
+    func capabilities() async -> PowerCapabilities {
+        PowerCapabilities(
+            energyModeScopes: [.battery],
+            supportedPowerModes: [.automatic, .lowPower],
+            requiresHelper: true,
+            helperStatus: .authorized
+        )
+    }
+
+    func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws {}
+
+    func readPowerState() async -> PowerModeState {
+        let readNumber = readCounter.incrementAndRead()
+
+        if readNumber == 1 {
+            await firstReadStarted.open()
+            await releaseFirstReadGate.wait()
+            return initialState
+        }
+
+        return updatedState
+    }
+
+    func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
+        scope == .battery ? updatedState.batteryMode : updatedState.adapterMode
+    }
+
+    func requestHelperApproval() async -> HelperStatus {
+        .authorized
+    }
+
+    func unregisterHelper() async -> HelperStatus {
+        .notInstalled
+    }
+
+    func waitForFirstRead() async {
+        await firstReadStarted.wait()
+    }
+
+    func releaseFirstRead() async {
+        await releaseFirstReadGate.open()
+    }
+}
+
 @MainActor
 private final class RecordingPowerControl: PowerControlProviding {
     let capabilitiesValue: PowerCapabilities
     let powerModeReadback: PowerMode?
     let activePowerModeReadback: PowerMode?
+    private(set) var readPowerStateCalls = 0
     private(set) var setPowerModeCalls = 0
+    private(set) var uncachedReadCalls = 0
+    private(set) var operationEvents: [String] = []
 
     init(
         capabilities: PowerCapabilities,
@@ -683,10 +1744,27 @@ private final class RecordingPowerControl: PowerControlProviding {
 
     func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws {
         setPowerModeCalls += 1
+        operationEvents.append("set")
+    }
+
+    func readPowerState() async -> PowerModeState {
+        readPowerStateCalls += 1
+        return PowerModeState(
+            activeMode: activePowerModeReadback,
+            batteryMode: powerModeReadback,
+            adapterMode: powerModeReadback
+        )
     }
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
-        powerModeReadback
+        operationEvents.append("read")
+        return powerModeReadback
+    }
+
+    func readPowerModeUncached(scope: PowerSourceScope) async -> PowerMode? {
+        uncachedReadCalls += 1
+        operationEvents.append("uncached-read")
+        return powerModeReadback
     }
 
     func readActivePowerMode() async -> PowerMode? {
@@ -743,11 +1821,24 @@ private final class BlockingPowerControl: PowerControlProviding {
 
 private struct FailingLaunchAtLoginManager: LaunchAtLoginManaging {
     @MainActor
-    func setEnabled(_ enabled: Bool) throws {
+    func setEnabled(_ enabled: Bool) async throws {
         throw RegistrationError.failed
     }
 
     private enum RegistrationError: Error {
         case failed
+    }
+}
+
+@MainActor
+private final class GatedLaunchAtLoginManager: LaunchAtLoginManaging {
+    private let gate = AsyncGate()
+
+    func setEnabled(_ enabled: Bool) async throws {
+        await gate.wait()
+    }
+
+    func release() async {
+        await gate.open()
     }
 }
