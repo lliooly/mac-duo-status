@@ -32,12 +32,25 @@ enum NetworkSignalMapper {
 final class NetworkProvider: NSObject, NetworkProviding, CWEventDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private let monitorQueue = DispatchQueue(label: "com.shishishi3.duo-status.network")
+    // CoreWLAN's synchronous getters can block while the system resolves Wi-Fi state.
+    private let readQueue = DispatchQueue(
+        label: "com.shishishi3.duo-status.network.read",
+        qos: .utility
+    )
     private let wifiClient = CWWiFiClient.shared()
 
     private var pathMonitor: NWPathMonitor?
     private var changeHandler: (@Sendable () -> Void)?
 
-    func read() async -> NetworkStatus {
+    nonisolated func read() async -> NetworkStatus {
+        await withCheckedContinuation { continuation in
+            readQueue.async { [self] in
+                continuation.resume(returning: readSynchronously())
+            }
+        }
+    }
+
+    private func readSynchronously() -> NetworkStatus {
         guard let path = currentPath() else {
             return .unavailable(reason: "Network monitoring is unavailable")
         }
