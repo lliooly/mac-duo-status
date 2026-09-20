@@ -2,9 +2,9 @@
 
 ## 1. 文档目的
 
-本文档描述 Duo Status 的代码边界和数据流，覆盖 V1 基础状态能力以及合并后的 Wi-Fi/电源控制层。
+本文档描述 Duo Status 的代码边界和数据流，覆盖 V1 基础状态能力以及电源控制层。
 
-当前版本采用混合实现：原有状态链路继续负责只读快照，独立控制层负责用户主动发起的写入。控制能力按平台支持度和授权状态降级，不能写入时仍保持完整的只读体验。
+当前版本采用只读网络状态链路和独立电源控制层：状态链路负责只读快照，电源控制层负责用户主动发起的能源模式写入。网络连接和切换交给 macOS 系统 Wi‑Fi 设置。
 
 ## 2. 当前工程状态
 
@@ -15,8 +15,8 @@
 - 领域层包含状态模型、健康分数计算和平滑采样基础。
 - State 层包含 SystemStatusStore、事件/定时刷新和 PreferencesStore。
 - Providers 层包含协议、真实 Apple 平台适配器和测试替身。
-- Control 层包含 Wi-Fi 控制协调器、电源策略控制协议和独立操作状态。
-- CoreWLAN 已接入扫描、已知网络合并、连接和 Wi-Fi 开关；凭据只在当前操作期间存在。
+- Control 层包含电源策略控制协议和独立操作状态。
+- NetworkProvider 只通过 NWPathMonitor 和 CoreWLAN 读取当前网络、SSID 和 RSSI，不执行扫描、连接、开关或凭据读取。
 - 电源策略通过公开 Foundation API 读取 Low Power 状态，并在 helper 接口版本握手成功后通过固定参数的 `/usr/bin/pmset` 读取和切换 Battery/AC 两套能源模式。能力、输出解析或 helper 不满足条件时，界面明确降级为只读；已授权但运行旧 helper 时显示修复入口，由用户触发重注册。
 - `DuoStatusPowerHelper` 已作为可签名、可授权的 LaunchDaemon 目标接入工程，但主应用不会因为辅助进程不可用而阻塞启动。
 - UI 层包含组合图标、弹出面板、状态区域和设置面板。
@@ -38,7 +38,8 @@ Xcode 默认的 WindowGroup、NavigationSplitView、SwiftData 和 Item 示例已
 建议的依赖方向：
 
     UI → SystemStatusStore → Provider protocols → Apple platform adapters
-    UI → ControlCoordinator → Control protocols → CoreWLAN / XPC helper
+    UI → ControlCoordinator → Power control protocols → XPC helper
+    UI → SettingsWindowAccess → macOS System Settings (Wi-Fi)
     UI → PreferencesStore
 
 UI 不直接调用 IOPowerSources、NWPathMonitor、CoreWLAN、Mach API 或 XPC。
@@ -86,9 +87,8 @@ SystemStatusStore 不负责绘制图标，也不负责直接存储用户偏好�
 - 读取 Wi-Fi RSSI 并映射为信号级别。
 - 区分 Wi-Fi、有线网络、个人热点和未连接。
 - 在无法确认个人热点时回退到普通 Wi-Fi。
-- 提供当前 SSID、BSSID、接口名和 Wi-Fi 开关状态，供控制层在操作完成后重新读取。
 
-连接类型和连接状态使用 NWPathMonitor 补充。Wi-Fi 名称和 RSSI 使用 CoreWLAN。`NetworkProvider` 只负责读状态；`CoreWLANNetworkController` 独立负责扫描、连接和 Wi-Fi 开关。
+连接类型和连接状态使用 NWPathMonitor 补充。Wi-Fi 名称和 RSSI 使用 CoreWLAN。`NetworkProvider` 只负责读取当前状态；网络连接和切换由 `SettingsWindowAccess` 交给 macOS 系统 Wi-Fi 设置。
 
 ### 4.4 HealthProvider
 
@@ -116,9 +116,9 @@ CPU 统计可以使用公共 Mach 接口，系统负载使用 getloadavg，热�
 - 被用户拒绝。
 - 辅助进程不可用或写入后读回未确认。
 
-UI 根据能力状态决定是否显示区域、只读值或操作控件，不直接根据 macOS 版本硬编码 UI。Wi-Fi 和电源操作分别维护 pending/succeeded/failed 状态，不能使用乐观更新。
+UI 根据能力状态决定是否显示区域、只读值或操作控件，不直接根据 macOS 版本硬编码 UI。电源操作维护 pending/succeeded/failed 状态，不能使用乐观更新。
 
-Wi-Fi 使用 CoreWLAN 完成本机控制；电源控制使用可选的 `SMAppService` LaunchDaemon 和 XPC 合同。主应用不以 root 运行，也不把管理员密码交给主应用。
+网络连接交由 macOS 系统 Wi-Fi 设置；电源控制使用可选的 `SMAppService` LaunchDaemon 和 XPC 合同。主应用不以 root 运行，也不把管理员密码交给主应用。
 
 ### 4.6 PreferencesStore
 
@@ -209,9 +209,10 @@ PreferencesStore 负责保存：
        ↙       ↓       ↘
   MenuBarExtra  Popover  Settings
 
-    Popover control action → ControlCoordinator → backend
-                                           ↓
-                                  readback → SystemStatusStore
+    Popover power action → ControlCoordinator → power backend
+                                             ↓
+                                    readback → SystemStatusStore
+    Popover Wi-Fi action → SettingsWindowAccess → macOS System Settings
 
 菜单栏图标只读取状态摘要。弹出面板读取完整快照和操作能力。设置面板读取 PreferencesStore 和能力模型，并通过统一状态源观察即时同步结果。
 
@@ -244,7 +245,6 @@ PreferencesStore 负责保存：
 - Foundation 的 ProcessInfo。
 - 公共 Mach CPU 统计接口。
 - getloadavg。
-- CoreWLAN 的网络扫描、连接和 Wi-Fi 开关。
 - `SMAppService`、LaunchDaemon 和 XPC，用于可选的电源辅助进程。
 - 系统内置 `/usr/bin/pmset`，仅由 helper 通过固定参数数组读取和写入能源模式。
 
@@ -267,8 +267,7 @@ UI 根据状态显示中性图形、简短说明或隐藏对应控件。一个 P
 ## 11. 安全边界
 
 - 主应用不以 root 身份运行，也不请求管理员密码。
-- Wi-Fi 凭据只存在于当前连接调用和安全输入控件生命周期内，不写入 UserDefaults、日志或模型持久层。
-- “记住此网络”由用户明确选择，默认关闭；关闭时应用不主动提交配置文件，但不宣称覆盖 macOS 的全局记忆策略。
+- 应用不读取或保存 Wi-Fi 密码、网络凭据或配置文件；连接行为完全交给 macOS 系统 Wi-Fi 设置。
 - 电源辅助进程仅暴露固定 XPC 方法和接口版本握手，并校验调用方签名身份；主应用不执行任意 shell 命令，helper 也不接受用户提供的命令字符串或路径。
 - 所有写入采用 pending → backend → readback → confirmed/writeUnconfirmed 流程。超时、授权失败和后备实现失败都必须如实展示。
 
