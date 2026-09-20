@@ -10,6 +10,12 @@
 		A10000010000000000000012 /* com.shishishi3.duo-status.power-helper in Embed power helper */ = {isa = PBXBuildFile; fileRef = A10000010000000000000001 /* com.shishishi3.duo-status.power-helper */; };
 		A10000010000000000000013 /* DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist in Embed power helper launchd plist */ = {isa = PBXBuildFile; fileRef = A1000001000000000000000D /* DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist */; };
 		A10000010000000000000015 /* mac-duo-status/Domain/PMSetPowerModeParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000014 /* mac-duo-status/Domain/PMSetPowerModeParser.swift */; };
+		B1000001000000000000000F /* DuoStatusWidget/DuoStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000A /* DuoStatusWidget/DuoStatusWidget.swift */; };
+		B10000010000000000000010 /* mac-duo-status/Widget/WidgetStatusSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000B /* mac-duo-status/Widget/WidgetStatusSnapshot.swift */; };
+		B10000010000000000000011 /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000C /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift */; };
+		B10000010000000000000012 /* mac-duo-status/Widget/StatusIconPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000D /* mac-duo-status/Widget/StatusIconPresentation.swift */; };
+		B10000010000000000000013 /* mac-duo-status/Widget/StatusIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000E /* mac-duo-status/Widget/StatusIconRenderer.swift */; };
+		B10000010000000000000014 /* DuoStatusWidget.appex in Embed DuoStatusWidget */ = {isa = PBXBuildFile; fileRef = B10000010000000000000001 /* DuoStatusWidget.appex */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +40,13 @@
 			remoteGlobalIDString = A10000010000000000000003;
 			remoteInfo = DuoStatusPowerHelper;
 		};
+		B10000010000000000000017 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0F69FE1E305811FB002C656F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B10000010000000000000003;
+			remoteInfo = DuoStatusWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -55,6 +68,15 @@
 			);
 			name = "Embed power helper launchd plist";
 		};
+		B10000010000000000000015 /* Embed DuoStatusWidget */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				B10000010000000000000014 /* DuoStatusWidget.appex in Embed DuoStatusWidget */,
+			);
+			name = "Embed DuoStatusWidget";
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -64,6 +86,13 @@
 		A10000010000000000000001 /* com.shishishi3.duo-status.power-helper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "com.shishishi3.duo-status.power-helper"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000001000000000000000D /* DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "DuoStatusPowerHelper/com.shishishi3.duo-status.power-helper.plist"; sourceTree = SOURCE_ROOT; };
 		A10000010000000000000014 /* mac-duo-status/Domain/PMSetPowerModeParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Domain/PMSetPowerModeParser.swift"; sourceTree = SOURCE_ROOT; };
+		B10000010000000000000001 /* DuoStatusWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "DuoStatusWidget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1000001000000000000000A /* DuoStatusWidget/DuoStatusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DuoStatusWidget/DuoStatusWidget.swift"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000000B /* mac-duo-status/Widget/WidgetStatusSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/WidgetStatusSnapshot.swift"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000000C /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/WidgetStatusSnapshotStore.swift"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000000D /* mac-duo-status/Widget/StatusIconPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/StatusIconPresentation.swift"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000000E /* mac-duo-status/Widget/StatusIconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/StatusIconRenderer.swift"; sourceTree = SOURCE_ROOT; };
+		B10000010000000000000019 /* DuoStatusWidget/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "DuoStatusWidget/Info.plist"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -110,6 +139,11 @@
 			files = (
 			);
 		};
+		B10000010000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -125,6 +159,8 @@
 			isa = PBXGroup;
 			children = (
 				0F69FE28305811FB002C656F /* mac-duo-status */,
+				B10000010000000000000018 /* Shared widget source */,
+				B10000010000000000000002 /* DuoStatusWidget */,
 				0F69FE38305811FC002C656F /* mac-duo-statusTests */,
 				0F69FE42305811FC002C656F /* mac-duo-statusUITests */,
 				A10000010000000000000002 /* DuoStatusPowerHelper */,
@@ -138,6 +174,7 @@
 			isa = PBXGroup;
 			children = (
 				0F69FE26305811FB002C656F /* mac-duo-status.app */,
+				B10000010000000000000001 /* DuoStatusWidget.appex */,
 				0F69FE35305811FC002C656F /* mac-duo-statusTests.xctest */,
 				0F69FE3F305811FC002C656F /* mac-duo-statusUITests.xctest */,
 				A10000010000000000000001 /* com.shishishi3.duo-status.power-helper */,
@@ -153,6 +190,26 @@
 			name = "Shared power mode source";
 			sourceTree = "<group>";
 		};
+		B10000010000000000000002 /* DuoStatusWidget */ = {
+			isa = PBXGroup;
+			children = (
+				B1000001000000000000000A /* DuoStatusWidget/DuoStatusWidget.swift */,
+				B10000010000000000000019 /* DuoStatusWidget/Info.plist */,
+			);
+			path = DuoStatusWidget;
+			sourceTree = SOURCE_ROOT;
+		};
+		B10000010000000000000018 /* Shared widget source */ = {
+			isa = PBXGroup;
+			children = (
+				B1000001000000000000000B /* mac-duo-status/Widget/WidgetStatusSnapshot.swift */,
+				B1000001000000000000000C /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift */,
+				B1000001000000000000000D /* mac-duo-status/Widget/StatusIconPresentation.swift */,
+				B1000001000000000000000E /* mac-duo-status/Widget/StatusIconRenderer.swift */,
+			);
+			name = "Shared widget source";
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -163,12 +220,14 @@
 				0F69FE22305811FB002C656F /* Sources */,
 				0F69FE23305811FB002C656F /* Frameworks */,
 				0F69FE24305811FB002C656F /* Resources */,
+				B10000010000000000000015 /* Embed DuoStatusWidget */,
 				A10000010000000000000010 /* Embed power helper */,
 				A10000010000000000000011 /* Embed power helper launchd plist */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B10000010000000000000016 /* PBXTargetDependency */,
 				A1000001000000000000000F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -178,6 +237,21 @@
 			productName = "mac-duo-status";
 			productReference = 0F69FE26305811FB002C656F /* mac-duo-status.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B10000010000000000000003 /* DuoStatusWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B10000010000000000000007 /* Build configuration list for PBXNativeTarget "DuoStatusWidget" */;
+			buildPhases = (
+				B10000010000000000000004 /* Sources */,
+				B10000010000000000000005 /* Frameworks */,
+				B10000010000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			name = DuoStatusWidget;
+			productName = DuoStatusWidget;
+			productReference = B10000010000000000000001 /* DuoStatusWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		0F69FE34305811FC002C656F /* mac-duo-statusTests */ = {
 			isa = PBXNativeTarget;
@@ -263,6 +337,9 @@
 					A10000010000000000000003 = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					B10000010000000000000003 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 0F69FE21305811FB002C656F /* Build configuration list for PBXProject "mac-duo-status" */;
@@ -272,6 +349,11 @@
 				en,
 				Base,
 				"zh-Hans",
+				ja,
+				ko,
+				es,
+				fr,
+				de,
 			);
 			mainGroup = 0F69FE1D305811FB002C656F;
 			minimizedProjectReferenceProxies = 1;
@@ -281,6 +363,7 @@
 			projectRoot = "";
 			targets = (
 				0F69FE25305811FB002C656F /* mac-duo-status */,
+				B10000010000000000000003 /* DuoStatusWidget */,
 				A10000010000000000000003 /* DuoStatusPowerHelper */,
 				0F69FE34305811FC002C656F /* mac-duo-statusTests */,
 				0F69FE3E305811FC002C656F /* mac-duo-statusUITests */,
@@ -309,6 +392,11 @@
 			files = (
 			);
 		};
+		B10000010000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -333,6 +421,16 @@
 				A10000010000000000000015 /* mac-duo-status/Domain/PMSetPowerModeParser.swift in Sources */,
 			);
 		};
+		B10000010000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				B1000001000000000000000F /* DuoStatusWidget/DuoStatusWidget.swift in Sources */,
+				B10000010000000000000010 /* mac-duo-status/Widget/WidgetStatusSnapshot.swift in Sources */,
+				B10000010000000000000011 /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift in Sources */,
+				B10000010000000000000012 /* mac-duo-status/Widget/StatusIconPresentation.swift in Sources */,
+				B10000010000000000000013 /* mac-duo-status/Widget/StatusIconRenderer.swift in Sources */,
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -350,6 +448,11 @@
 			isa = PBXTargetDependency;
 			target = A10000010000000000000003 /* DuoStatusPowerHelper */;
 			targetProxy = A1000001000000000000000E /* PBXContainerItemProxy */;
+		};
+		B10000010000000000000016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B10000010000000000000003 /* DuoStatusWidget */;
+			targetProxy = B10000010000000000000017 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -626,6 +729,55 @@
 			};
 			name = Release;
 		};
+		B10000010000000000000008 /* Debug configuration for PBXNativeTarget "DuoStatusWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "DuoStatusWidget/DuoStatusWidget.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = PM2QH96LXN;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "DuoStatusWidget/Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.shishishi3.mac-duo-status.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B10000010000000000000009 /* Release configuration for PBXNativeTarget "DuoStatusWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "DuoStatusWidget/DuoStatusWidget.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = PM2QH96LXN;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "DuoStatusWidget/Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.shishishi3.mac-duo-status.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		A10000010000000000000008 /* Debug configuration for PBXNativeTarget "DuoStatusPowerHelper" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -695,6 +847,14 @@
 			buildConfigurations = (
 				0F69FE4E305811FC002C656F /* Debug configuration for PBXNativeTarget "mac-duo-statusUITests" */,
 				0F69FE4F305811FC002C656F /* Release configuration for PBXNativeTarget "mac-duo-statusUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		B10000010000000000000007 /* Build configuration list for PBXNativeTarget "DuoStatusWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10000010000000000000008 /* Debug configuration for PBXNativeTarget "DuoStatusWidget" */,
+				B10000010000000000000009 /* Release configuration for PBXNativeTarget "DuoStatusWidget" */,
 			);
 			defaultConfigurationName = Release;
 		};

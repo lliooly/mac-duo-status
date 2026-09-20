@@ -7,12 +7,17 @@
 		<key>DuoStatusPowerHelper.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>0</integer>
+			<integer>1</integer>
+		</dict>
+		<key>DuoStatusWidget.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
 		</dict>
 		<key>mac-duo-status.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>1</integer>
+			<integer>0</integer>
 		</dict>
 	</dict>
 </dict>
