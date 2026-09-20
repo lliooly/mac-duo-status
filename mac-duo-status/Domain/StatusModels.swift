@@ -163,9 +163,6 @@ struct NetworkStatus: Equatable, Sendable {
     var rssi: Int?
     var signalLevel: Int?
     var hotspotConfirmed: Bool
-    var ssidData: Data? = nil
-    var bssid: String? = nil
-    var isWiFiEnabled: Bool? = nil
 
     var shouldShowWiFiSignal: Bool {
         kind == .wifi && !hotspotConfirmed
@@ -178,10 +175,7 @@ struct NetworkStatus: Equatable, Sendable {
             name: nil,
             rssi: nil,
             signalLevel: nil,
-            hotspotConfirmed: false,
-            ssidData: nil,
-            bssid: nil,
-            isWiFiEnabled: nil
+            hotspotConfirmed: false
         )
     }
 }

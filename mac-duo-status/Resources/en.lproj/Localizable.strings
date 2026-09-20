@@ -53,41 +53,9 @@
 "network.kind.hotspot" = "Personal Hotspot";
 "network.kind.disconnected" = "Not Connected";
 "network.connected" = "Connected";
-"network.switch" = "Switch Wi-Fi Network";
 
 "wifi.title" = "Wi-Fi";
-"wifi.scan" = "Scan Networks";
-"wifi.personal-hotspots" = "Personal Hotspots";
-"wifi.known-networks" = "Known Networks";
-"wifi.other-networks" = "Other Networks";
-"wifi.hidden-network" = "Hidden Network";
-"wifi.ssid-placeholder" = "Network name";
 "wifi.settings" = "Wi-Fi Settings…";
-"wifi.no-networks" = "No networks found";
-"wifi.hidden" = "Hidden Network";
-"wifi.not-found" = "Not Found";
-"wifi.username" = "Username";
-"wifi.password" = "Password";
-"wifi.identity" = "Certificate Identity";
-"wifi.identity.none" = "No certificate identity";
-"wifi.remember" = "Remember This Network";
-"wifi.connect" = "Connect";
-"wifi.connected-not-remembered" = "Connected, but the network was not remembered";
-"wifi.authorization.title" = "Wi-Fi Authorization";
-"wifi.authorization.authorized" = "Authorized for saved networks";
-"wifi.authorization.not-authorized" = "Authorization required for saved networks";
-"wifi.authorization.description" = "Authorize once with Touch ID, Apple Watch, or your Mac password to reuse saved Wi-Fi credentials.";
-"wifi.authorization.authorize" = "Authorize";
-"wifi.authorization.revoke" = "Revoke";
-"wifi.authorization.reason" = "Allow Duo Status to connect to saved Wi-Fi networks";
-"wifi.authorization.helper-description" = "The helper must be enabled once before saved networks can use the system's saved Wi-Fi configuration.";
-"wifi.security.open" = "Open";
-"wifi.security.wep" = "WEP";
-"wifi.security.dynamic-wep" = "Dynamic WEP";
-"wifi.security.personal" = "Personal";
-"wifi.security.enterprise" = "Enterprise";
-"wifi.security.owe" = "Enhanced Open";
-"wifi.security.unknown" = "Unknown Security";
 
 "health.load.one-minute" = "1-minute Load";
 "health.thermal.nominal" = "Nominal";
@@ -102,10 +70,6 @@
 "common.cancel" = "Cancel";
 "common.apply" = "Apply";
 
-"control.error.network-not-found" = "Network not found";
-"control.error.credentials-required" = "Enter the network password or credentials";
-"control.error.authentication-failed" = "Authentication failed";
-"control.error.unsupported-security" = "This security type is not supported";
 "control.error.authorization-required" = "Authorization required";
 "control.error.helper-unavailable" = "Advanced controls are unavailable";
 "control.error.operation-timeout" = "The operation completed, but the state was not confirmed";
@@ -120,4 +84,3 @@
 "settings.colored-icon" = "Use colored icon";
 "settings.indicators" = "Indicators";
 "settings.default-sections" = "Default expanded sections";
-"settings.wifi" = "Wi-Fi";

@@ -53,41 +53,9 @@
 "network.kind.hotspot" = "个人热点";
 "network.kind.disconnected" = "未连接";
 "network.connected" = "已连接";
-"network.switch" = "切换 Wi-Fi 网络";
 
 "wifi.title" = "Wi-Fi";
-"wifi.scan" = "扫描网络";
-"wifi.personal-hotspots" = "个人热点";
-"wifi.known-networks" = "已知网络";
-"wifi.other-networks" = "其他网络";
-"wifi.hidden-network" = "隐藏网络";
-"wifi.ssid-placeholder" = "输入网络名称";
 "wifi.settings" = "Wi-Fi 设置…";
-"wifi.no-networks" = "未发现网络";
-"wifi.hidden" = "隐藏网络";
-"wifi.not-found" = "未发现";
-"wifi.username" = "用户名";
-"wifi.password" = "密码";
-"wifi.identity" = "证书身份";
-"wifi.identity.none" = "不使用证书身份";
-"wifi.remember" = "记住此网络";
-"wifi.connect" = "连接";
-"wifi.connected-not-remembered" = "已连接，未能记住网络";
-"wifi.authorization.title" = "Wi-Fi 授权";
-"wifi.authorization.authorized" = "已授权，可连接已保存网络";
-"wifi.authorization.not-authorized" = "连接已保存网络前需要授权";
-"wifi.authorization.description" = "使用 Touch ID、Apple Watch 或 Mac 密码授权一次，即可复用已保存的 Wi-Fi 凭据。";
-"wifi.authorization.authorize" = "立即授权";
-"wifi.authorization.revoke" = "撤销授权";
-"wifi.authorization.reason" = "允许 Duo Status 连接已保存的 Wi-Fi 网络";
-"wifi.authorization.helper-description" = "首次连接已保存网络需要启用一次辅助进程；启用后会由系统复用保存的 Wi-Fi 配置。";
-"wifi.security.open" = "开放";
-"wifi.security.wep" = "WEP";
-"wifi.security.dynamic-wep" = "动态 WEP";
-"wifi.security.personal" = "个人";
-"wifi.security.enterprise" = "企业";
-"wifi.security.owe" = "增强开放";
-"wifi.security.unknown" = "未知安全类型";
 
 "health.load.one-minute" = "1 分钟负载";
 "health.thermal.nominal" = "正常";
@@ -102,10 +70,6 @@
 "common.cancel" = "取消";
 "common.apply" = "应用";
 
-"control.error.network-not-found" = "未找到网络";
-"control.error.credentials-required" = "请输入网络密码或凭据";
-"control.error.authentication-failed" = "认证失败";
-"control.error.unsupported-security" = "暂不支持此安全类型";
 "control.error.authorization-required" = "需要授权";
 "control.error.helper-unavailable" = "高级控制不可用";
 "control.error.operation-timeout" = "操作完成，但状态未确认";
@@ -120,4 +84,3 @@
 "settings.colored-icon" = "使用彩色图标";
 "settings.indicators" = "指示器";
 "settings.default-sections" = "默认展开区域";
-"settings.wifi" = "Wi-Fi";

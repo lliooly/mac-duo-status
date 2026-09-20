@@ -29,27 +29,6 @@ struct PlaceholderPowerPolicyProvider: PowerPolicyProviding {
     }
 }
 
-struct PlaceholderNetworkControlProvider: NetworkControlProviding {
-    func scan(
-        includeHidden: Bool,
-        ssidData: Data?
-    ) async throws -> [WiFiNetworkCandidate] {
-        throw ControlError.temporarilyUnavailable
-    }
-
-    func setWiFiEnabled(_ enabled: Bool) async throws {
-        throw ControlError.temporarilyUnavailable
-    }
-
-    func connect(
-        to target: WiFiNetworkCandidate,
-        credential: WiFiCredential?,
-        remember: Bool
-    ) async throws -> WiFiConnectionResult {
-        throw ControlError.temporarilyUnavailable
-    }
-}
-
 struct PlaceholderPowerControlProvider: PowerControlProviding {
     func capabilities() async -> PowerCapabilities {
         .unsupported

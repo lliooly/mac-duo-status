@@ -43,7 +43,6 @@ struct ProviderContainer: Sendable {
     let network: any NetworkProviding
     let health: any HealthProviding
     let powerPolicy: any PowerPolicyProviding
-    let networkControl: any NetworkControlProviding
     let powerControl: any PowerControlProviding
 
     init(
@@ -51,14 +50,12 @@ struct ProviderContainer: Sendable {
         network: any NetworkProviding,
         health: any HealthProviding,
         powerPolicy: any PowerPolicyProviding = PlaceholderPowerPolicyProvider(),
-        networkControl: any NetworkControlProviding = PlaceholderNetworkControlProvider(),
         powerControl: any PowerControlProviding = PlaceholderPowerControlProvider()
     ) {
         self.battery = battery
         self.network = network
         self.health = health
         self.powerPolicy = powerPolicy
-        self.networkControl = networkControl
         self.powerControl = powerControl
     }
 
@@ -68,16 +65,12 @@ struct ProviderContainer: Sendable {
             network: PlaceholderNetworkProvider(),
             health: PlaceholderHealthProvider(),
             powerPolicy: PlaceholderPowerPolicyProvider(),
-            networkControl: PlaceholderNetworkControlProvider(),
             powerControl: PlaceholderPowerControlProvider()
         )
     }
 
     static var live: ProviderContainer {
         let helper = PowerHelperClient()
-        let networkControl = CoreWLANNetworkController(
-            savedNetworkConnector: helper
-        )
         let powerControl = PowerPolicyProvider(helper: helper)
 
         return ProviderContainer(
@@ -85,7 +78,6 @@ struct ProviderContainer: Sendable {
             network: NetworkProvider(),
             health: HealthProvider(),
             powerPolicy: powerControl,
-            networkControl: networkControl,
             powerControl: powerControl
         )
     }

@@ -6,8 +6,8 @@
 import Foundation
 import ServiceManagement
 
-final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting, @unchecked Sendable {
-    private static let expectedHelperRevision = 4
+final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
+    private static let expectedHelperRevision = 5
 
     private struct RawPowerState: Sendable {
         let batteryMode: String?
@@ -18,7 +18,6 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
     private let service: SMAppService
     private let machServiceName = "com.shishishi3.duo-status.power-helper"
     private let requestTimeoutNanoseconds: UInt64 = 5_000_000_000
-    private let wifiRequestTimeoutNanoseconds: UInt64 = 15_000_000_000
 
     init(
         service: SMAppService = .daemon(
@@ -214,61 +213,6 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
         }
     }
 
-    func connectToSavedNetwork(
-        interfaceName: String,
-        ssidData: Data
-    ) async throws {
-        guard !ssidData.isEmpty else {
-            throw ControlError.networkNotFound
-        }
-
-        let helperStatus = currentStatus()
-        guard helperStatus.isAuthorized else {
-            throw errorForWiFi(helperStatus)
-        }
-
-        let connection = XPCConnectionBox(makeConnection())
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let finish = Once {
-                connection.invalidate()
-            }
-            let timeout = XPCRequestTimeout()
-            timeout.start(after: wifiRequestTimeoutNanoseconds) {
-                finish.run {
-                    continuation.resume(throwing: ControlError.operationTimeout)
-                }
-            }
-            let proxy = connection.connection.remoteObjectProxyWithErrorHandler { _ in
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(throwing: ControlError.helperUnavailable)
-                }
-            } as? DuoStatusPowerHelperProtocol
-
-            guard let proxy else {
-                finish.run {
-                    timeout.cancel()
-                    continuation.resume(throwing: ControlError.helperUnavailable)
-                }
-                return
-            }
-
-            proxy.connectToSavedWiFi(
-                interfaceName as NSString,
-                ssidData: ssidData as NSData
-            ) { error in
-                finish.run {
-                    timeout.cancel()
-                    if let error {
-                        continuation.resume(throwing: self.map(error: error))
-                    } else {
-                        continuation.resume(returning: ())
-                    }
-                }
-            }
-        }
-    }
-
     func requestHelperApproval() async -> HelperStatus {
         do {
             if currentStatus() == .authorized {
@@ -348,48 +292,12 @@ final class PowerHelperClient: PowerControlProviding, SavedWiFiNetworkConnecting
         }
     }
 
-    private func errorForWiFi(_ status: HelperStatus) -> ControlError {
-        switch status {
-        case .notInstalled, .requiresApproval:
-            return .authorizationRequired
-        case .authorized, .unavailable, .failed:
-            return .helperUnavailable
-        }
-    }
-
     private func map(error: NSError) -> ControlError {
         if error.domain == NSCocoaErrorDomain && error.code == NSUserCancelledError {
             return .cancelled
         }
 
-        guard error.domain == "com.shishishi3.duo-status.power-helper" else {
-            return .failed
-        }
-
-        switch error.code {
-        case 101:
-            return .failed
-        case 102:
-            return .networkNotFound
-        case 103:
-            return .credentialsRequired
-        case 104:
-            return .authenticationFailed
-        case 105:
-            return .unsupportedSecurity
-        case 106:
-            // The helper itself is already approved at this point. A CoreWLAN
-            // permission failure should fall back to the manual credential UI.
-            return .credentialsRequired
-        case 107:
-            return .temporarilyUnavailable
-        case 108:
-            return .operationTimeout
-        case 109:
-            return .failed
-        default:
-            return .failed
-        }
+        return .failed
     }
 }
 
