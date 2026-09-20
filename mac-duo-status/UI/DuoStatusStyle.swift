@@ -26,10 +26,25 @@ enum DuoStatusStyle {
 
     static let panelCornerRadius: CGFloat = 22
     static let cardCornerRadius: CGFloat = 17
-    static let panelWidth: CGFloat = 340
+    static let panelMinWidth: CGFloat = 340
+    static let panelMaxWidth: CGFloat = 560
     static let panelPadding: CGFloat = 16
     static let cardPadding: CGFloat = 16
+    static let settingsMinWidth: CGFloat = 440
+    static let settingsMaxWidth: CGFloat = 680
 
     static let quickAnimation = Animation.easeInOut(duration: 0.18)
     static let pageAnimation = Animation.easeInOut(duration: 0.24)
+
+    static func textWidth(_ text: String, font: NSFont) -> CGFloat {
+        (text as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    static func clamped(
+        _ width: CGFloat,
+        min minimum: CGFloat,
+        max maximum: CGFloat
+    ) -> CGFloat {
+        min(max(width, minimum), maximum)
+    }
 }

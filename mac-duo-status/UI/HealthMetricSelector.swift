@@ -6,67 +6,101 @@
 import SwiftUI
 
 struct HealthMetricSelector: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var localization: LocalizationStore
+
+    private let compact: Bool
     @Binding var selection: HealthMetric
 
-    @State private var hoveredMetric: HealthMetric?
-    @Namespace private var selectionAnimation
-
-    init(selection: Binding<HealthMetric>) {
-        self._selection = selection
+    init(
+        compact: Bool = false,
+        selection: Binding<HealthMetric>
+    ) {
+        self.compact = compact
+        _selection = selection
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(HealthMetric.allCases) { metric in
-                metricButton(for: metric)
+        Group {
+            if #available(macOS 27.0, *) {
+                capsuleSurface(
+                    picker
+                        .pickerStyle(.tabs)
+                        .controlSize(.large)
+                        .buttonSizing(.flexible)
+                )
+            } else {
+                capsuleSurface(
+                    picker
+                        .pickerStyle(.segmented)
+                )
             }
         }
-        .padding(3)
-        .background(
-            DuoStatusStyle.controlFill,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(DuoStatusStyle.cardStroke, lineWidth: 0.5)
-        }
-        .frame(maxWidth: .infinity, minHeight: 32)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("health-metric-selector")
     }
 
-    private func metricButton(for metric: HealthMetric) -> some View {
-        Button {
-            withAnimation(reduceMotion ? nil : DuoStatusStyle.quickAnimation) {
-                selection = metric
-            }
+    private var picker: some View {
+        Picker(selection: $selection) {
+            metricOptions
         } label: {
-            Text(metric.localizedTitle)
-                .font(.system(size: 11, weight: selection == metric ? .semibold : .medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
-                .foregroundStyle(selection == metric ? .primary : DuoStatusStyle.muted)
-                .frame(maxWidth: .infinity, minHeight: 28)
-                .background {
-                    if selection == metric {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
-                            .shadow(color: Color.black.opacity(0.10), radius: 2, y: 1)
-                            .matchedGeometryEffect(
-                                id: "health-metric-selection",
-                                in: selectionAnimation
-                            )
-                    } else if hoveredMetric == metric {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.05))
-                    }
+            Text(localization.string("settings.indicators"))
+        }
+        .labelsHidden()
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("health-metric-selector")
+    }
+
+    @ViewBuilder
+    private func capsuleSurface<Content: View>(_ content: Content) -> some View {
+        let horizontalPadding: CGFloat = compact ? 4 : 6
+
+        content
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            .background {
+                if #available(macOS 26.0, *) {
+                    Capsule(style: .continuous)
+                        .fill(Color.clear)
+                        .glassEffect(
+                            .clear,
+                            in: Capsule(style: .continuous)
+                        )
+                        .overlay {
+                            Capsule(style: .continuous)
+                                .strokeBorder(
+                                    Color.primary.opacity(0.12),
+                                    lineWidth: 0.75
+                                )
+                        }
+                } else {
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            Capsule(style: .continuous)
+                                .strokeBorder(
+                                    Color.primary.opacity(0.12),
+                                    lineWidth: 0.75
+                                )
+                        }
+                        .shadow(
+                            color: Color.black.opacity(0.12),
+                            radius: 6,
+                            y: 2
+                        )
                 }
-                .contentShape(Rectangle())
+            }
+            .clipShape(Capsule(style: .continuous))
+    }
+
+    private var metricOptions: some View {
+        ForEach(HealthMetric.allCases) { metric in
+            Text(localization.string(metric.localizationKey))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .tag(metric)
+                .accessibilityIdentifier("health-metric-\(metric.rawValue)")
         }
-        .buttonStyle(.plain)
-        .onHover { isHovered in
-            hoveredMetric = isHovered ? metric : nil
-        }
-        .accessibilityIdentifier("health-metric-\(metric.rawValue)")
-        .accessibilityAddTraits(selection == metric ? .isSelected : [])
     }
 }
