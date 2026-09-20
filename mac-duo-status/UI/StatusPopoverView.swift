@@ -10,7 +10,6 @@ import SwiftUI
 struct StatusPopoverView: View {
     private enum PopoverDestination: Hashable {
         case root
-        case wifi
         case power
     }
 
@@ -43,11 +42,6 @@ struct StatusPopoverView: View {
             case .root:
                 rootContent
                     .transition(pageTransition)
-            case .wifi:
-                WiFiControlView {
-                    navigate(to: .root, direction: -1)
-                }
-                .transition(pageTransition)
             case .power:
                 PowerControlView {
                     navigate(to: .root, direction: -1)
@@ -261,13 +255,11 @@ struct StatusPopoverView: View {
 
                     Spacer(minLength: 0)
 
-                    Button {
-                        navigate(to: .wifi, direction: 1)
-                    } label: {
-                        actionLabel(NSLocalizedString("network.switch", comment: ""))
+                    Button(action: SettingsWindowAccess.openWiFiSettings) {
+                        actionLabel(NSLocalizedString("wifi.settings", comment: ""))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("open-wifi-control")
+                    .accessibilityIdentifier("open-wifi-settings")
                 }
             }
         }
