@@ -70,6 +70,18 @@ struct PowerCapabilities: Equatable, Sendable {
     )
 }
 
+struct PowerModeState: Equatable, Sendable {
+    let activeMode: PowerMode?
+    let batteryMode: PowerMode?
+    let adapterMode: PowerMode?
+
+    static let unavailable = PowerModeState(
+        activeMode: nil,
+        batteryMode: nil,
+        adapterMode: nil
+    )
+}
+
 struct PowerPolicyStatus: Equatable, Sendable {
     let availability: DataAvailability
     let activeMode: PowerMode?
@@ -104,19 +116,37 @@ extension PowerPolicyProviding {
 protocol PowerControlProviding: Sendable {
     func capabilities() async -> PowerCapabilities
     func setPowerMode(_ mode: PowerMode, scope: PowerSourceScope) async throws
+    func readPowerState() async -> PowerModeState
     func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?)
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode?
+    func readPowerModeUncached(scope: PowerSourceScope) async -> PowerMode?
     func readActivePowerMode() async -> PowerMode?
     func requestHelperApproval() async -> HelperStatus
     func unregisterHelper() async -> HelperStatus
 }
 
 extension PowerControlProviding {
+    func readPowerState() async -> PowerModeState {
+        async let activeMode = readActivePowerMode()
+        async let powerModes = readPowerModes()
+        let (active, modes) = await (activeMode, powerModes)
+
+        return PowerModeState(
+            activeMode: active,
+            batteryMode: modes.batteryMode,
+            adapterMode: modes.adapterMode
+        )
+    }
+
     func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
         (
             await readPowerMode(scope: .battery),
             await readPowerMode(scope: .powerAdapter)
         )
+    }
+
+    func readPowerModeUncached(scope: PowerSourceScope) async -> PowerMode? {
+        await readPowerMode(scope: scope)
     }
 
     func readActivePowerMode() async -> PowerMode? {

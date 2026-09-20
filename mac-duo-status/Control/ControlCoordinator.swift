@@ -43,11 +43,16 @@ final class ControlCoordinator: ObservableObject {
             }
 
             try await powerControl.setPowerMode(mode, scope: scope)
-            guard await powerControl.readPowerMode(scope: scope) == mode else {
+
+            // Read back only after the write has completed and bypass the
+            // status cache; the store refresh below separately confirms the
+            // published snapshot.
+            let readback = await powerControl.readPowerModeUncached(scope: scope)
+            guard readback == mode else {
                 throw ControlError.writeUnconfirmed
             }
 
-            await statusStore.refreshNowAndWait()
+            await statusStore.refreshPowerPolicyNowAndWait()
             guard Self.matches(
                 status: statusStore.snapshot.powerPolicy,
                 mode: mode,
@@ -70,7 +75,7 @@ final class ControlCoordinator: ObservableObject {
 
         powerOperationState = .pending
         let status = await powerControl.requestHelperApproval()
-        await statusStore.refreshNowAndWait()
+        await statusStore.refreshPowerPolicyNowAndWait()
 
         if status == .authorized || statusStore.snapshot.powerPolicy.helperStatus == .authorized {
             powerOperationState = .succeeded
@@ -88,7 +93,7 @@ final class ControlCoordinator: ObservableObject {
 
         powerOperationState = .pending
         let status = await powerControl.unregisterHelper()
-        await statusStore.refreshNowAndWait()
+        await statusStore.refreshPowerPolicyNowAndWait()
         powerOperationState = status == .notInstalled
             ? .succeeded
             : .failed(.helperUnavailable)

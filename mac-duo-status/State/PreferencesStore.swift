@@ -14,23 +14,8 @@ final class PreferencesStore: ObservableObject {
         }
     }
 
-    @Published var launchAtLogin: Bool {
-        didSet {
-            if isSynchronizingLaunchAtLogin {
-                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
-                return
-            }
-
-            do {
-                try launchAtLoginManager.setEnabled(launchAtLogin)
-                defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
-            } catch {
-                isSynchronizingLaunchAtLogin = true
-                launchAtLogin = oldValue
-                isSynchronizingLaunchAtLogin = false
-            }
-        }
-    }
+    @Published private(set) var launchAtLogin: Bool
+    @Published private(set) var isUpdatingLaunchAtLogin = false
 
     @Published var usesColor: Bool {
         didSet {
@@ -49,7 +34,6 @@ final class PreferencesStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let launchAtLoginManager: any LaunchAtLoginManaging
-    private var isSynchronizingLaunchAtLogin = false
 
     init(
         defaults: UserDefaults = .standard,
@@ -70,8 +54,33 @@ final class PreferencesStore: ObservableObject {
         )
 
         if launchAtLogin {
-            try? self.launchAtLoginManager.setEnabled(true)
+            let manager = self.launchAtLoginManager
+            Task { @MainActor in
+                try? await manager.setEnabled(true)
+            }
         }
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) async {
+        guard enabled != launchAtLogin,
+              !isUpdatingLaunchAtLogin
+        else {
+            return
+        }
+
+        let previousValue = launchAtLogin
+        launchAtLogin = enabled
+        isUpdatingLaunchAtLogin = true
+
+        do {
+            try await launchAtLoginManager.setEnabled(enabled)
+            defaults.set(enabled, forKey: Keys.launchAtLogin)
+        } catch {
+            launchAtLogin = previousValue
+            defaults.set(previousValue, forKey: Keys.launchAtLogin)
+        }
+
+        isUpdatingLaunchAtLogin = false
     }
 
     func isExpanded(_ section: StatusSection) -> Bool {

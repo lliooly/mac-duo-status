@@ -16,8 +16,14 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
     }
 
     private let service: SMAppService
+    // ServiceManagement status and registration calls perform synchronous system IPC.
+    private let serviceQueue = DispatchQueue(
+        label: "com.shishishi3.duo-status.power-helper.service",
+        qos: .utility
+    )
     private let machServiceName = "com.shishishi3.duo-status.power-helper"
     private let requestTimeoutNanoseconds: UInt64 = 5_000_000_000
+    private let capabilitiesCache = PowerCapabilitiesCache()
 
     init(
         service: SMAppService = .daemon(
@@ -28,11 +34,26 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
     }
 
     func capabilities() async -> PowerCapabilities {
-        await readCapabilitiesFromHelper()
+        let helperStatus = await currentStatus()
+        guard helperStatus == .authorized else {
+            await capabilitiesCache.clear()
+            return capabilities(for: helperStatus)
+        }
+
+        if let cached = await capabilitiesCache.value() {
+            return cached
+        }
+
+        let capabilities = await readCapabilitiesFromHelper(status: helperStatus)
+        if capabilities.helperStatus == .authorized {
+            await capabilitiesCache.store(capabilities)
+        } else {
+            await capabilitiesCache.clear()
+        }
+        return capabilities
     }
 
-    private func readCapabilitiesFromHelper() async -> PowerCapabilities {
-        let helperStatus = currentStatus()
+    private func readCapabilitiesFromHelper(status helperStatus: HelperStatus) async -> PowerCapabilities {
         guard helperStatus == .authorized else {
             return capabilities(for: helperStatus)
         }
@@ -148,15 +169,21 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
         }
     }
 
-    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
-        guard let state = await readPowerState() else {
-            return (nil, nil)
+    func readPowerState() async -> PowerModeState {
+        guard let state = await readRawPowerState() else {
+            return .unavailable
         }
 
-        return (
-            state.batteryMode.flatMap(PowerMode.init(rawValue:)),
-            state.adapterMode.flatMap(PowerMode.init(rawValue:))
+        return PowerModeState(
+            activeMode: state.activeMode.flatMap(PowerMode.init(rawValue:)),
+            batteryMode: state.batteryMode.flatMap(PowerMode.init(rawValue:)),
+            adapterMode: state.adapterMode.flatMap(PowerMode.init(rawValue:))
         )
+    }
+
+    func readPowerModes() async -> (batteryMode: PowerMode?, adapterMode: PowerMode?) {
+        let state = await readPowerState()
+        return (state.batteryMode, state.adapterMode)
     }
 
     func readPowerMode(scope: PowerSourceScope) async -> PowerMode? {
@@ -165,11 +192,11 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
     }
 
     func readActivePowerMode() async -> PowerMode? {
-        await readPowerState()?.activeMode.flatMap(PowerMode.init(rawValue:))
+        await readPowerState().activeMode
     }
 
-    private func readPowerState() async -> RawPowerState? {
-        guard currentStatus() == .authorized else {
+    private func readRawPowerState() async -> RawPowerState? {
+        guard await currentStatus() == .authorized else {
             return nil
         }
 
@@ -214,38 +241,83 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
     }
 
     func requestHelperApproval() async -> HelperStatus {
+        await capabilitiesCache.clear()
         do {
-            if currentStatus() == .authorized {
-                return await reloadHelper()
+            if await currentStatus() == .authorized {
+                let status = await reloadHelper()
+                await capabilitiesCache.clear()
+                return status
             }
 
-            try service.register()
-            return currentStatus()
+            try await registerService()
+            let status = await currentStatus()
+            await capabilitiesCache.clear()
+            return status
         } catch {
+            await capabilitiesCache.clear()
             return .failed(reason: "Unable to register the power helper")
         }
     }
 
     func unregisterHelper() async -> HelperStatus {
+        await capabilitiesCache.clear()
         do {
-            try await service.unregister()
-            return currentStatus()
+            try await unregisterService()
+            let status = await currentStatus()
+            await capabilitiesCache.clear()
+            return status
         } catch {
+            await capabilitiesCache.clear()
             return .failed(reason: "Unable to unregister the power helper")
         }
     }
 
     private func reloadHelper() async -> HelperStatus {
         do {
-            try await service.unregister()
-            try service.register()
-            return currentStatus()
+            try await unregisterService()
+            try await registerService()
+            return await currentStatus()
         } catch {
             return .failed(reason: "Unable to reload the power helper")
         }
     }
 
-    private func currentStatus() -> HelperStatus {
+    private func currentStatus() async -> HelperStatus {
+        await withCheckedContinuation { continuation in
+            serviceQueue.async { [self] in
+                continuation.resume(returning: readCurrentStatus())
+            }
+        }
+    }
+
+    private func registerService() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            serviceQueue.async { [self] in
+                do {
+                    try service.register()
+                    continuation.resume(returning: ())
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    private func unregisterService() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            serviceQueue.async { [self] in
+                service.unregister { error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: ())
+                    }
+                }
+            }
+        }
+    }
+
+    private func readCurrentStatus() -> HelperStatus {
         switch service.status {
         case .notRegistered, .notFound:
             return .notInstalled
@@ -298,6 +370,22 @@ final class PowerHelperClient: PowerControlProviding, @unchecked Sendable {
         }
 
         return .failed
+    }
+}
+
+private actor PowerCapabilitiesCache {
+    private var cachedCapabilities: PowerCapabilities?
+
+    func value() -> PowerCapabilities? {
+        cachedCapabilities
+    }
+
+    func store(_ capabilities: PowerCapabilities) {
+        cachedCapabilities = capabilities
+    }
+
+    func clear() {
+        cachedCapabilities = nil
     }
 }
 
