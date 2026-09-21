@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="284" viewBox="0 0 284 284">
+  <defs>
+    <linearGradient
+      id="battery-rainbow"
+      x1="52.36"
+      y1="193.5"
+      x2="237.64"
+      y2="193.5"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop offset="0" stop-color="#FF5F6D"/>
+      <stop offset="0.17" stop-color="#FF9F43"/>
+      <stop offset="0.34" stop-color="#FFD866"/>
+      <stop offset="0.5" stop-color="#56D98F"/>
+      <stop offset="0.67" stop-color="#4FC3F7"/>
+      <stop offset="0.83" stop-color="#6C63FF"/>
+      <stop offset="1" stop-color="#C17BFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- StatusIconRenderer source: center (145, 144) in AppKit's upward-Y canvas. -->
+  <!-- This is the equivalent transparent SVG path after the Y-axis flip. -->
+  <path
+    d="M 52.36 193.5 A 107 107 0 1 1 237.64 193.5"
+    fill="none"
+    stroke="url(#battery-rainbow)"
+    stroke-width="17"
+    stroke-linecap="round"
+  />
+</svg>

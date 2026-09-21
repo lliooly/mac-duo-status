@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="284" viewBox="0 0 284 284">
+  <!-- StatusIconRenderer source: four 11.5pt dots in AppKit's upward-Y canvas. -->
+  <!-- Their screen-space equivalents are used here; all four are white. -->
+  <g fill="#FFFFFF">
+    <circle cx="91" cy="230" r="11.5"/>
+    <circle cx="126" cy="244" r="11.5"/>
+    <circle cx="166" cy="244" r="11.5"/>
+    <circle cx="202" cy="230" r="11.5"/>
+  </g>
+</svg>

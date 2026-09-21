@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="284" viewBox="0 0 284 284">
+  <!-- StatusIconRenderer source: center (145, 112) in AppKit's upward-Y canvas. -->
+  <!-- The SVG arcs use the equivalent screen-space coordinates. -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round">
+    <path d="M 102.034 125.925 A 63 63 0 0 1 187.966 125.925"/>
+    <path d="M 119.766 144.940 A 37 37 0 0 1 170.234 144.940"/>
+  </g>
+
+  <!-- Rounded fan tip from StatusIconRenderer.drawWiFi. -->
+  <path
+    d="M 134 160
+       Q 145 150 156 160
+       Q 160 163 157 166
+       L 148 175
+       Q 145 178 142 175
+       L 133 166
+       Q 130 163 134 160
+       Z"
+    fill="#FFFFFF"
+  />
+</svg>
