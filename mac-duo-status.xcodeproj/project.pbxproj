@@ -16,6 +16,7 @@
 		B10000010000000000000012 /* mac-duo-status/Widget/StatusIconPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000D /* mac-duo-status/Widget/StatusIconPresentation.swift */; };
 		B10000010000000000000013 /* mac-duo-status/Widget/StatusIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000000E /* mac-duo-status/Widget/StatusIconRenderer.swift */; };
 		B10000010000000000000014 /* DuoStatusWidget.appex in Embed DuoStatusWidget */ = {isa = PBXBuildFile; fileRef = B10000010000000000000001 /* DuoStatusWidget.appex */; };
+		B1000001000000000000001C /* DuoStatusWidget/FooObject.mm in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000001B /* DuoStatusWidget/FooObject.mm */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,9 @@
 		B1000001000000000000000D /* mac-duo-status/Widget/StatusIconPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/StatusIconPresentation.swift"; sourceTree = SOURCE_ROOT; };
 		B1000001000000000000000E /* mac-duo-status/Widget/StatusIconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "mac-duo-status/Widget/StatusIconRenderer.swift"; sourceTree = SOURCE_ROOT; };
 		B10000010000000000000019 /* DuoStatusWidget/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "DuoStatusWidget/Info.plist"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000001A /* DuoStatusWidget/FooObject.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DuoStatusWidget/FooObject.h"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000001B /* DuoStatusWidget/FooObject.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "DuoStatusWidget/FooObject.mm"; sourceTree = SOURCE_ROOT; };
+		B1000001000000000000001D /* DuoStatusWidget/DuoStatusWidget-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "DuoStatusWidget/DuoStatusWidget-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -194,6 +198,9 @@
 			isa = PBXGroup;
 			children = (
 				B1000001000000000000000A /* DuoStatusWidget/DuoStatusWidget.swift */,
+				B1000001000000000000001A /* DuoStatusWidget/FooObject.h */,
+				B1000001000000000000001B /* DuoStatusWidget/FooObject.mm */,
+				B1000001000000000000001D /* DuoStatusWidget/DuoStatusWidget-Bridging-Header.h */,
 				B10000010000000000000019 /* DuoStatusWidget/Info.plist */,
 			);
 			path = DuoStatusWidget;
@@ -429,6 +436,7 @@
 				B10000010000000000000011 /* mac-duo-status/Widget/WidgetStatusSnapshotStore.swift in Sources */,
 				B10000010000000000000012 /* mac-duo-status/Widget/StatusIconPresentation.swift in Sources */,
 				B10000010000000000000013 /* mac-duo-status/Widget/StatusIconRenderer.swift in Sources */,
+				B1000001000000000000001C /* DuoStatusWidget/FooObject.mm in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
@@ -748,6 +756,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "DuoStatusWidget/DuoStatusWidget-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -773,6 +782,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "DuoStatusWidget/DuoStatusWidget-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
