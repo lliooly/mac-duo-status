@@ -9,20 +9,48 @@ import WidgetKit
 @MainActor
 final class WidgetStatusBridge {
     private let snapshotStore: WidgetStatusSnapshotStore
+    private let nowProvider: () -> Date
+    private let reloadHandler: () -> Void
     private var lastPublishedSnapshot: WidgetStatusSnapshot?
     private var lastWriteDate = Date.distantPast
-    private var lastReloadDate = Date.distantPast
 
     init() {
         self.snapshotStore = WidgetStatusSnapshotStore()
+        self.nowProvider = { Date() }
+        self.reloadHandler = { Self.reloadWidgetTimeline() }
     }
 
-    init(snapshotStore: WidgetStatusSnapshotStore) {
+    convenience init(snapshotStore: WidgetStatusSnapshotStore) {
+        self.init(
+            snapshotStore: snapshotStore,
+            nowProvider: { Date() },
+            reloadHandler: { Self.reloadWidgetTimeline() }
+        )
+    }
+
+    convenience init(
+        snapshotStore: WidgetStatusSnapshotStore,
+        reloadHandler: @escaping () -> Void
+    ) {
+        self.init(
+            snapshotStore: snapshotStore,
+            nowProvider: { Date() },
+            reloadHandler: reloadHandler
+        )
+    }
+
+    init(
+        snapshotStore: WidgetStatusSnapshotStore,
+        nowProvider: @escaping () -> Date,
+        reloadHandler: @escaping () -> Void
+    ) {
         self.snapshotStore = snapshotStore
+        self.nowProvider = nowProvider
+        self.reloadHandler = reloadHandler
     }
 
     func publish(snapshot: SystemStatusSnapshot, usesColor: Bool) {
-        let now = Date()
+        let now = nowProvider()
         let candidate = WidgetStatusSnapshot(
             snapshot: snapshot,
             usesColor: usesColor,
@@ -45,14 +73,15 @@ final class WidgetStatusBridge {
         lastPublishedSnapshot = candidate
         lastWriteDate = now
 
-        guard now.timeIntervalSince(lastReloadDate)
-                >= WidgetStatusConstants.reloadMinimumInterval
-        else {
+        guard contentChanged else {
             return
         }
 
+        reloadHandler()
+    }
+
+    private static func reloadWidgetTimeline() {
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetStatusConstants.kind)
-        lastReloadDate = now
     }
 }
 
