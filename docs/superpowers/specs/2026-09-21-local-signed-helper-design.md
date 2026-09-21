@@ -4,8 +4,9 @@
 
 v2.0.0 的 GitHub DMG 使用未签名构建，主应用可以启动和展示只读状态，但
 `SMAppService` 无法稳定注册电源控制 LaunchDaemon。当前 helper 还把调用方
-Team ID 固定为旧值 `PM2QH96LXN`，而本机可用的 Apple Development 签名身份
-属于 Team ID `FJCB242ZH9`，因此本机构建无法通过 helper 的调用方校验。
+Team ID 固定为 `PM2QH96LXN`。本机 Apple Development 签名经过 `codesign`
+验证后的 Team Identifier 也是 `PM2QH96LXN`，但公开 DMG 仍然是 ad hoc 签名，
+因此主应用无法通过 helper 的调用方校验。
 
 ## 目标
 

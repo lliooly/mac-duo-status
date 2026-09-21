@@ -69,21 +69,45 @@ final class DuoStatusPowerHelperMain: NSObject, NSXPCListenerDelegate {
             return false
         }
 
+        guard let information = signingInformation(for: staticCode),
+              let identifier = information[kSecCodeInfoIdentifier as String] as? String,
+              identifier == "com.shishishi3.mac-duo-status",
+              let clientTeamIdentifier = information[kSecCodeInfoTeamIdentifier as String] as? String,
+              let helperTeamIdentifier = ownTeamIdentifier()
+        else {
+            return false
+        }
+
+        return clientTeamIdentifier == helperTeamIdentifier
+    }
+
+    private func ownTeamIdentifier() -> String? {
+        var selfCode: SecCode?
+        var staticCode: SecStaticCode?
+        guard SecCodeCopySelf([], &selfCode) == errSecSuccess,
+              let selfCode,
+              SecCodeCopyStaticCode(selfCode, [], &staticCode) == errSecSuccess,
+              let staticCode,
+              let information = signingInformation(for: staticCode)
+        else {
+            return nil
+        }
+
+        return information[kSecCodeInfoTeamIdentifier as String] as? String
+    }
+
+    private func signingInformation(for code: SecStaticCode) -> [String: Any]? {
         var signingInformation: CFDictionary?
         guard SecCodeCopySigningInformation(
-            staticCode,
+            code,
             SecCSFlags(rawValue: kSecCSSigningInformation),
             &signingInformation
         ) == errSecSuccess,
         let information = signingInformation as? [String: Any]
         else {
-            return false
+            return nil
         }
 
-        let identifier = information[kSecCodeInfoIdentifier as String] as? String
-        let teamIdentifier = information[kSecCodeInfoTeamIdentifier as String] as? String
-
-        return identifier == "com.shishishi3.mac-duo-status" &&
-            teamIdentifier == "PM2QH96LXN"
+        return information
     }
 }

@@ -39,6 +39,21 @@
 
 应用包内包含 Widget 扩展和能源模式 helper 文件。由于本阶段不签名，helper 不应被当作已授权能力；目标系统如果拒绝无签名 App Group 容器，建议从 Xcode 以自己的 Team 构建并运行。
 
+## 本机开发签名
+
+如果需要在当前 Mac 上使用高级电源控制，不要直接运行上面的未签名 Release
+包。打开 Xcode 为主应用、Widget 和 `DuoStatusPowerHelper` 选择同一个
+Apple Development Team，或运行：
+
+```sh
+./script/build_and_run.sh --verify
+```
+
+脚本会使用项目配置的 Team，并通过 `-allowProvisioningUpdates` 让 Xcode
+准备本机开发 provisioning profile。开发构建的 helper 只信任与自身相同
+Team Identifier 的主应用，因此可以在本机启用高级控制；这不改变公开 DMG
+没有 Developer ID 签名和公证的事实，也不把个人证书带入发布产物。
+
 ## Gatekeeper 使用说明
 
 没有 Developer ID 的 DMG 不会获得 Apple 公证票据。用户下载后应在 Finder 中对应用右键选择“打开”；如果仍被拦截，可在“系统设置 → 隐私与安全性”中点击“仍要打开”。确认来源可信后，也可以使用：

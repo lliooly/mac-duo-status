@@ -58,8 +58,16 @@ xattr -dr com.apple.quarantine /Applications/mac-duo-status.app
 1. 安装完整 Xcode。
 2. 克隆仓库并打开 `mac-duo-status.xcodeproj`。
 3. 选择 `mac-duo-status` Scheme。
-4. 在 Apple silicon Mac、macOS 13 或更高版本上运行。
-5. 在“桌面与菜单栏设置”中把 Duo Status Widget 加到桌面或通知中心。
+4. 在 Signing & Capabilities 中为主应用、Widget 和
+   `DuoStatusPowerHelper` 选择同一个 Apple Development Team，并保持
+   Automatically manage signing。
+5. 在 Apple silicon Mac、macOS 13 或更高版本上运行。
+6. 在“桌面与菜单栏设置”中把 Duo Status Widget 加到桌面或通知中心。
+
+从源码构建的开发签名版本可以启用高级电源控制；这是给当前 Mac 自用的
+版本，不等于 Developer ID 分发签名。首次点击 `Enable` 时，系统可能要求
+批准辅助进程。若仍显示“等待系统批准”，请按 macOS 的系统设置提示完成
+批准后重新打开应用。
 
 命令行运行：
 
@@ -67,7 +75,15 @@ xattr -dr com.apple.quarantine /Applications/mac-duo-status.app
 ./script/build_and_run.sh
 ```
 
-这个脚本会停止旧的 Duo Status 进程、构建 Debug 版本并启动新版本；还支持：
+这个脚本会停止旧的 Duo Status 进程，读取项目配置中的开发团队，使用
+Apple Development 身份和 Xcode 自动签名构建 Debug 版本，并启动新版本。
+如果你需要覆盖项目配置中的 Team，可以显式传入：
+
+```sh
+DEVELOPMENT_TEAM=<你的 Team ID> ./script/build_and_run.sh --verify
+```
+
+还支持：
 
 ```sh
 ./script/build_and_run.sh --verify
