@@ -1237,7 +1237,11 @@ struct mac_duo_statusTests {
             powerPolicy: .unavailable(reason: "Not used by widget")
         )
         let store = WidgetStatusSnapshotStore(defaults: defaults)
-        let bridge = WidgetStatusBridge(snapshotStore: store)
+        let reloadCounter = LockedCounter()
+        let bridge = WidgetStatusBridge(
+            snapshotStore: store,
+            reloadHandler: { reloadCounter.increment() }
+        )
 
         bridge.publish(snapshot: snapshot, usesColor: true)
 
@@ -1247,7 +1251,103 @@ struct mac_duo_statusTests {
         #expect(published?.network.kind == .ethernet)
         #expect(published?.healthDotCount == 3)
         #expect(published?.usesColor == true)
+        #expect(reloadCounter.value == 1)
     }
+
+    @Test
+    @MainActor
+    func widgetBridgeReloadsEachDisplayChangeButNotHeartbeatWrites() {
+        let suiteName = "DuoStatusWidgetReloadTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var now = Date(timeIntervalSince1970: 1_700_000_000)
+        let reloadCounter = LockedCounter()
+        let store = WidgetStatusSnapshotStore(defaults: defaults)
+        let bridge = WidgetStatusBridge(
+            snapshotStore: store,
+            nowProvider: { now },
+            reloadHandler: { reloadCounter.increment() }
+        )
+        let first = makeWidgetSystemSnapshot(chargeFraction: 0.42)
+
+        bridge.publish(snapshot: first, usesColor: true)
+        #expect(reloadCounter.value == 1)
+        #expect(store.read()?.updatedAt == now)
+
+        now = now.addingTimeInterval(1)
+        bridge.publish(snapshot: first, usesColor: true)
+        #expect(reloadCounter.value == 1)
+        #expect(store.read()?.updatedAt == Date(timeIntervalSince1970: 1_700_000_000))
+
+        now = now.addingTimeInterval(WidgetStatusConstants.writeHeartbeatInterval)
+        bridge.publish(snapshot: first, usesColor: true)
+        #expect(reloadCounter.value == 1)
+        #expect(store.read()?.updatedAt == now)
+
+        var changed = first
+        changed.battery.chargeFraction = 0.41
+        now = now.addingTimeInterval(1)
+        bridge.publish(snapshot: changed, usesColor: true)
+        #expect(reloadCounter.value == 2)
+        #expect(store.read()?.battery.chargeFraction == 0.41)
+    }
+
+    @Test
+    @MainActor
+    func widgetBridgeDoesNotReloadWhenSnapshotWriteFails() {
+        let missingContainer = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let reloadCounter = LockedCounter()
+        let bridge = WidgetStatusBridge(
+            snapshotStore: WidgetStatusSnapshotStore(containerURL: missingContainer),
+            reloadHandler: { reloadCounter.increment() }
+        )
+
+        bridge.publish(
+            snapshot: makeWidgetSystemSnapshot(),
+            usesColor: true
+        )
+
+        #expect(reloadCounter.value == 0)
+    }
+}
+
+private func makeWidgetSystemSnapshot(
+    chargeFraction: Double = 0.42
+) -> SystemStatusSnapshot {
+    SystemStatusSnapshot(
+        lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+        battery: testBattery(
+            chargeFraction: chargeFraction,
+            isCharging: false,
+            isLowPowerModeEnabled: true
+        ),
+        network: NetworkStatus(
+            availability: .available,
+            kind: .ethernet,
+            name: nil,
+            rssi: nil,
+            signalLevel: nil,
+            hotspotConfirmed: false
+        ),
+        health: HealthStatus(
+            availability: .available,
+            cpuUsagePercent: 20,
+            oneMinuteLoad: 1,
+            fiveMinuteLoad: 1,
+            fifteenMinuteLoad: 1,
+            logicalCPUCount: 4,
+            thermalState: .nominal,
+            cpuScore: 0.8,
+            loadScore: 0.75,
+            thermalScore: 1,
+            selectedMetric: .cpu,
+            selectedScore: 0.8,
+            dotCount: 3
+        ),
+        powerPolicy: .unavailable(reason: "Not used by widget")
+    )
 }
 
 private func testBattery(
