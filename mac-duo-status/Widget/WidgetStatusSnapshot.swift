@@ -10,8 +10,7 @@ enum WidgetStatusConstants {
     static let appGroupIdentifier = "group.com.shishishi3.mac-duo-status"
     static let snapshotKey = "widget.status.snapshot"
     static let staleInterval: TimeInterval = 10 * 60
-    static let timelineInterval: TimeInterval = 60
-    static let reloadMinimumInterval: TimeInterval = 30
+    static let timelineFallbackInterval: TimeInterval = 5 * 60
     static let writeHeartbeatInterval: TimeInterval = 60
 }
 

@@ -43,7 +43,7 @@ struct DuoStatusWidgetProvider: TimelineProvider {
         let snapshot = snapshotStore.read() ?? .unavailable(updatedAt: now)
         let entry = DuoStatusWidgetEntry(date: now, snapshot: snapshot)
         let nextRefresh = now.addingTimeInterval(
-            WidgetStatusConstants.timelineInterval
+            WidgetStatusConstants.timelineFallbackInterval
         )
 
         completion(
@@ -62,14 +62,10 @@ struct DuoStatusWidgetView: View {
     var body: some View {
         if #available(macOS 14.0, *) {
             widgetContent
-                .containerBackground(for: .widget) {
-                    widgetBackground
-                }
+                .containerBackground(.clear, for: .widget)
         } else {
             widgetContent
-                .background {
-                    widgetBackground
-                }
+                .background(Color.clear)
         }
     }
 
@@ -82,10 +78,13 @@ struct DuoStatusWidgetView: View {
                 batteryColorOverride: WidgetBatteryColorResolver.resolve(
                     for: entry.snapshot
                 ),
-                foregroundColor: .labelColor
+                foregroundColor: .white,
+                isTemplate: true
             ))
             .interpolation(.high)
             .resizable()
+            .renderingMode(.template)
+            .foregroundStyle(.primary)
             .scaledToFit()
             .frame(width: 112, height: 112)
             .opacity(entry.snapshot.isStale ? 0.62 : 1)
@@ -94,23 +93,6 @@ struct DuoStatusWidgetView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Duo Status")
         .accessibilityValue("Battery, network, and system health status")
-    }
-
-    @ViewBuilder
-    private var widgetBackground: some View {
-        if #available(macOS 26.0, *) {
-            Color.clear
-                .glassEffect(
-                    .clear,
-                    in: RoundedRectangle(
-                        cornerRadius: 32,
-                        style: .continuous
-                    )
-                )
-        } else {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(.ultraThinMaterial)
-        }
     }
 }
 
