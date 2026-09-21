@@ -358,7 +358,6 @@ private struct StatusRootView: View {
                 }
 
                 HealthMetricSelector(
-                    compact: true,
                     selection: Binding(
                         get: { preferences.healthMetric },
                         set: { statusStore.setHealthMetric($0) }
