@@ -12,7 +12,8 @@ enum StatusIconRenderer {
         size: CGFloat,
         usesColor: Bool,
         batteryColorOverride: NSColor? = nil,
-        foregroundColor: NSColor = .white
+        foregroundColor: NSColor = .white,
+        isTemplate: Bool = false
     ) -> NSImage {
         let canvasSize = max(size, 1)
         let image = NSImage(size: NSSize(width: canvasSize, height: canvasSize))
@@ -20,7 +21,7 @@ enum StatusIconRenderer {
         image.lockFocus()
         defer {
             image.unlockFocus()
-            image.isTemplate = false
+            image.isTemplate = isTemplate
         }
 
         guard let context = NSGraphicsContext.current?.cgContext else {
