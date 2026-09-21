@@ -10,7 +10,7 @@
 
 当前工程已经完成基础状态与合并控制版本的主要骨架：
 
-- 主场景使用 MenuBarExtra。
+- 主场景使用 AppKit `NSStatusItem`，弹出面板由 SwiftUI `NSPopover` 承载。
 - 设置场景使用 Settings。
 - 领域层包含状态模型、健康分数计算和平滑采样基础。
 - State 层包含 SystemStatusStore、事件/定时刷新和 PreferencesStore。
@@ -30,7 +30,7 @@ Xcode 默认的 WindowGroup、NavigationSplitView、SwiftData 和 Item 示例已
 
 目标结构分为四层，并在状态层旁边增加独立控制链路：
 
-1. 应用层：管理 MenuBarExtra、设置窗口和应用生命周期。
+1. 应用层：管理 `NSStatusItem`、SwiftUI 弹出面板、设置窗口和应用生命周期。
 2. 状态层：统一管理状态快照、刷新任务和配置同步。
 3. Provider 层：分别读取电池、网络和系统健康状态。
 4. 平台适配层：封装 Apple API、辅助进程客户端和系统设置入口。
@@ -207,7 +207,7 @@ PreferencesStore 负责保存：
               ↓
     SystemStatusStore
        ↙       ↓       ↘
-  MenuBarExtra  Popover  Settings
+  NSStatusItem  Popover  Settings
 
     Popover power action → ControlCoordinator → power backend
                                              ↓
@@ -233,7 +233,7 @@ PreferencesStore 负责保存：
 - 通过弹出面板底部或上下文菜单打开设置，并通过上下文菜单退出。
 - 设置面板是独立的长期配置入口。
 
-骨架使用 MenuBarExtra 的 window style 和 Settings Scene。窗口尺寸、视觉细节以及最终交互仍可在 UI 开发阶段调整，不改变上述职责边界。
+骨架使用 AppKit `NSStatusItem`、SwiftUI `NSPopover` 和 Settings Scene。窗口尺寸、视觉细节以及最终交互仍可在 UI 开发阶段调整，不改变上述职责边界。
 
 ## 9. 平台 API 边界
 
