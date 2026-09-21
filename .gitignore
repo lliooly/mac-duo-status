@@ -1,6 +1,13 @@
 # Xcode build products
 build/
 DerivedData/
+dist/
+*.xcarchive
+*.dSYM/
+
+# Xcode user data
+**/xcuserdata/
+*.xcuserstate
 
 # macOS metadata
 .DS_Store

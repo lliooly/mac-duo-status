@@ -1,40 +1,56 @@
 # Duo Status 发布说明
 
-## 当前阶段
+## v2.0.0 发布范围
 
-当前版本以 Apple silicon 的无签名 macOS zip 包为发布产物，版本号为 `1.1.0`、build `2`。签名、公证和 helper 的正式授权暂不纳入本阶段；无签名包适合个人测试或手动分发，不应宣称为免警告的正式安装包。
+`v2.0.0` 是 Apple silicon 优先的 macOS 13+ 版本，发布形式为没有 Developer ID 签名的 DMG 和 ZIP。当前不购买 Developer ID，也不执行 notarization；Gatekeeper 首次打开提示属于预期行为。
+
+本版本包含菜单栏状态入口、SwiftUI 弹出面板、设置面板、Widget 扩展、状态共享快照和能源模式安全降级。能源模式 helper 的正式签名、安装和授权不在本次发布门禁内，helper 不可用时应用保持只读。
 
 ## 发布前检查
 
-1. 在 Apple silicon Mac 上完成电池、Wi-Fi 只读状态、系统 Wi-Fi 设置入口、辅助进程降级和能源模式的手动验收。
-2. 运行单元测试和完整测试：
+1. 停止旧的应用、Widget 和构建进程，清理旧的 `build/`、DerivedData 和 `dist/` 产物。
+2. 在 Apple silicon Mac 上验证菜单栏入口、弹出面板、设置、网络系统设置入口和只读降级。
+3. 运行单元测试：
 
    ```sh
-   xcodebuild -project mac-duo-status.xcodeproj -scheme mac-duo-status -destination 'platform=macOS' test
+   xcodebuild \
+     -project mac-duo-status.xcodeproj \
+     -scheme mac-duo-status \
+     -destination 'platform=macOS' \
+     test
    ```
 
-3. 生成无签名发布包：
+4. 生成无签名发布包：
 
    ```sh
    ./scripts/package-unsigned-release.sh
    ```
 
-4. 在干净用户环境中确认：应用可以启动、菜单栏入口可用、不会出现额外的 Wi-Fi/定位授权提示、网络卡可以打开系统 Wi-Fi 设置，且未授权 helper 时不会显示伪造的写入成功状态。
-5. 将 zip 和对应的 `.sha256` 文件一起发布，并在发布说明中明确 Apple silicon、macOS 13+ 和无签名限制。
+5. 检查 `dist/` 中的 DMG、ZIP 和 SHA-256 文件，并在隔离目录中打开 DMG 验证应用包结构。
+6. 在发布说明中明确 Apple silicon、macOS 13+、无签名和 Gatekeeper 手动放行要求。
 
 ## 产物
 
 脚本会生成：
 
-- `build/release/DuoStatus-v1.1.0-macos-arm64-unsigned.zip`
-- `build/release/DuoStatus-v1.1.0-macos-arm64-unsigned.zip.sha256`
+- `dist/DuoStatus-v2.0.0-macos-arm64-unsigned.dmg`
+- `dist/DuoStatus-v2.0.0-macos-arm64-unsigned.zip`
+- 两个产物对应的 `.sha256` 校验文件
 
-包内包含主应用、helper 可执行文件和 LaunchDaemon plist。由于本阶段不签名，helper 不应被当作已授权能力；应用必须继续提供只读回退。
+应用包内包含 Widget 扩展和能源模式 helper 文件。由于本阶段不签名，helper 不应被当作已授权能力；目标系统如果拒绝无签名 App Group 容器，建议从 Xcode 以自己的 Team 构建并运行。
+
+## Gatekeeper 使用说明
+
+没有 Developer ID 的 DMG 不会获得 Apple 公证票据。用户下载后应在 Finder 中对应用右键选择“打开”；如果仍被拦截，可在“系统设置 → 隐私与安全性”中点击“仍要打开”。确认来源可信后，也可以使用：
+
+```sh
+xattr -dr com.apple.quarantine /Applications/mac-duo-status.app
+```
+
+这只是本地手动放行，不等于 Developer ID 签名或 notarization。
 
 ## 版本与 GitHub Release
 
-现有 `v1.0.0` Release 对应旧提交。发布当前代码时应先提交版本变更，再创建新的 `v1.1.0` tag 和 GitHub Release，不要复用旧 tag。
+发布提交完成后创建 `v2.0.0` tag，并将 DMG、ZIP 和校验文件上传到 GitHub Release。不要复用已有的 `v1.0.0` 或 `v1.1.0` tag。
 
-## 暂不执行的签名流程
-
-后续具备 Apple Developer 发行条件后，再补充 Developer ID Application 签名、notarization、staple 和已签名 helper 的实机授权验收。签名之前不要把无签名包描述为经过 Apple 公证。
+后续如果具备 Apple Developer 发行条件，再补充 Developer ID Application 签名、Hardened Runtime、notarization、staple 和已签名 helper 的实机验收。
